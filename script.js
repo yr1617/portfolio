@@ -91,7 +91,7 @@ const setupEnvironmentMap = (targetScene, targetRenderer) => {
     return envMapTexture;
 };
 
-// 일반 조명이 너무 강하면 크롬이 허얗게 타버립니다. 전체적으로 조명 강도를 낮춥니다.
+// 일반 조명 밸런스 설정
 const setupEnvironment = (targetScene) => {
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.05); 
     targetScene.add(ambientLight);
@@ -119,8 +119,9 @@ const initThree = () => {
         canvasTarget.appendChild(canvas);
     }
 
-    const width  = canvasTarget.clientWidth  || 600;
-    const height = canvasTarget.clientHeight || 600;
+    // 🌟 처음 켤 때 부모 요소의 실제 픽셀 크기를 정확히 캐치합니다.
+    const width  = canvasTarget.getBoundingClientRect().width || canvasTarget.clientWidth || 600;
+    const height = canvasTarget.getBoundingClientRect().height || canvasTarget.clientHeight || 600;
 
     scene = new THREE.Scene();
 
@@ -138,6 +139,9 @@ const initThree = () => {
 
     camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 100);
     camera.position.set(0, 0, 5.8);
+
+    // 🌟 엔진이 기동되자마자 찌그러짐을 방지하기 위해 초기 사이즈 연산을 1회 강제 실행합니다.
+    handleResize();
 
     const applyModelMaterial = (envMap) => {
         setupEnvironment(scene);
@@ -195,8 +199,8 @@ const initThree = () => {
                 const siteLoader = document.querySelector('#site-loader');
                 if (siteLoader) siteLoader.classList.add('is-loaded');
 
-                // 🌟 모델 로드가 끝난 시점에 레이아웃 한 번 더 즉시 동기화해 찌그러짐 원천 차단
-                handleResize();
+                // 🌟 모델 로딩이 완전히 끝난 직후 뷰포트를 한 번 더 정렬합니다.
+                setTimeout(handleResize, 50);
             },
             undefined,
             (err) => { console.warn('모델 로딩 실패:', err); }
@@ -224,10 +228,10 @@ const initThree = () => {
         }
     );
 
-    // 🌟 [핵심 수정] 기존 window.resize 대신 ResizeObserver를 사용하여 디스플레이 박스 크기를 실시간 칼감지
+    // ResizeObserver 엔진 구동 (애니메이션 타이밍 버그 방지를 위해 requestAnimationFrame 래핑)
     if (displayShell) {
         const resizeObserver = new ResizeObserver(() => {
-            handleResize();
+            requestAnimationFrame(handleResize);
         });
         resizeObserver.observe(displayShell);
     }
@@ -269,19 +273,21 @@ const animate = () => {
     }
 };
 
-// 🌟 [핵심 수정] 찌그러짐을 해결하기 위해 가로세로 비율 계산 후 카메라 렌즈 매트릭스를 강제로 업데이트(`updateProjectionMatrix`)합니다.
+// 🌟 비율 찌그러짐 원천 차단 핸들러
 const handleResize = () => {
     if (!renderer || !camera || !displayShell) return;
     
-    const width = displayShell.clientWidth;
-    const height = displayShell.clientHeight;
+    // getBoundingClientRect를 활용하여 소수점 아래 숨겨진 크기까지 정확히 추적합니다.
+    const rect = displayShell.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
     
-    if (width === 0 || height === 0) return; // 드래그 중 0이 되는 비정상 연산 보호
+    if (width === 0 || height === 0) return; 
 
     camera.aspect = width / height;
-    camera.updateProjectionMatrix(); // 🌟 렌즈 비율 재설정 (찌그러짐 방지 핵심 코드)
+    camera.updateProjectionMatrix(); 
     
-    renderer.setSize(width, height);
+    renderer.setSize(width, height, false); // 🌟 false 인자를 주어 CSS 레이아웃 충돌을 방지합니다.
 };
 
 /* ════════════════════════════════════════
@@ -542,7 +548,6 @@ if (displayShell) {
     displayShell.addEventListener('pointerleave', () => { isHoveringModel = false; });
 }
 
-// 🌟 브라우저 윈도우 크기 변화 이벤트 백업 유지
 window.addEventListener('resize', () => {
     handleResize();
     updateNavProgress();
@@ -568,5 +573,6 @@ window.onload = () => {
     setupReveal();
     initThree();
     animate();
-    updateNavProgress();
+    // 🌟 모든 UI 로드 직후 마지막 확인 사살용 리사이즈
+    setTimeout(handleResize, 100); 
 };
