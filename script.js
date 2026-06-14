@@ -2,7 +2,9 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
-// 기존 애니메이션 루프 및 잔여 데이터 완벽 제거
+/* ════════════════════════════════════════
+    🧹 이전 잔여 데이터 및 유령 모델 파괴
+════════════════════════════════════════ */
 if (window.animFrameId) {
     cancelAnimationFrame(window.animFrameId);
     window.animFrameId = null;
@@ -14,64 +16,55 @@ let isHoveringModel = false;
 let clock = 0;
 const rotState = { x: 0, y: 0 };
 
+// 3D 별이 들어갈 레이아웃 박스 가져오기
 const displayShell = document.querySelector('.landing-display-shell') || document.querySelector('#landing-display');
 
 /* ════════════════════════════════════════
-    ✨ 하이퍼 크롬을 위한 가상 스튜디오 환경 맵 생성
+    ✨ 거울 같은 크롬 효과를 위한 가상 스튜디오 환경 맵
 ════════════════════════════════════════ */
 const setupEnvironmentMap = (targetScene, targetRenderer) => {
-    // 흑화 현상을 막고 금속면에 반사될 고대비 불빛 판들을 가상 공간에 배치합니다.
     const envScene = new THREE.Scene();
     
-    // 은은한 전체 배경 베이스광
-    const baseLight = new THREE.AmbientLight(0xffffff, 1.0);
+    // 사방을 채워줄 기본 은은한 조명
+    const baseLight = new THREE.AmbientLight(0xffffff, 1.2);
     envScene.add(baseLight);
 
-    // 1. 전면 하이라이트를 만들어줄 강력한 대형 반사판
+    // 1. 전면 모서리를 쨍하게 깎아줄 초대형 흰색 반사판
     const plate1 = new THREE.Mesh(
-        new THREE.PlaneGeometry(50, 50),
+        new THREE.PlaneGeometry(60, 60),
         new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
     );
-    plate1.position.set(0, 10, 30);
+    plate1.position.set(0, 15, 35);
     plate1.lookAt(0, 0, 0);
     envScene.add(plate1);
 
-    // 2. 좌측 측면 메탈 라인을 살려줄 백색 반사판
+    // 2. 좌측면 각도를 살려줄 날카로운 하이라이트 판
     const plate2 = new THREE.Mesh(
-        new THREE.PlaneGeometry(30, 60),
+        new THREE.PlaneGeometry(35, 70),
         new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
     );
-    plate2.position.set(-25, 15, 10);
+    plate2.position.set(-30, 20, 15);
     plate2.lookAt(0, 0, 0);
     envScene.add(plate2);
 
-    // 3. 우측 모서리에 날카로운 광택을 더해줄 고대비 흑백 반사판
+    // 3. 우측면 음영 대비를 극대화할 반사판
     const plate3 = new THREE.Mesh(
-        new THREE.PlaneGeometry(20, 50),
+        new THREE.PlaneGeometry(25, 60),
         new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
     );
-    plate3.position.set(25, -5, 15);
+    plate3.position.set(30, -5, 20);
     plate3.lookAt(0, 0, 0);
     envScene.add(plate3);
 
-    // 4. 상단 천장 조명판
-    const plate4 = new THREE.Mesh(
-        new THREE.PlaneGeometry(60, 60),
-        new THREE.MeshBasicMaterial({ color: 0xdddddd, side: THREE.DoubleSide })
-    );
-    plate4.position.set(0, 35, 0);
-    plate4.rotation.x = Math.PI / 2;
-    envScene.add(plate4);
-
-    // 가상 스튜디오 풍경을 360도 환경 텍스처(PMREM)로 램에 굽습니다.
+    // 가상 스튜디오 조명들을 360도 환경 텍스처로 굽기
     const pmremGenerator = new THREE.PMREMGenerator(targetRenderer);
     pmremGenerator.compileEquirectangularShader();
     const envMapTexture = pmremGenerator.fromScene(envScene).texture;
     
-    // 메인 씬의 환경 맵으로 등록 (이제 메탈 재질이 이 가상 스튜디오를 반사합니다)
+    // 메인 장면에 환경 맵 적용 (이제 별 표면에 이 판들이 거울처럼 비칩니다)
     targetScene.environment = envMapTexture;
     
-    // 메모리 해제 및 정리
+    // 메모리 정리
     envScene.traverse((child) => {
         if (child.isMesh) {
             child.geometry.dispose();
@@ -82,15 +75,16 @@ const setupEnvironmentMap = (targetScene, targetRenderer) => {
 };
 
 /* ════════════════════════════════════════
-    📦 THREE.JS 코어 빌드 및 레이아웃 최적화
+    📦 THREE.JS 코어 빌드 (물리적 캔버스 리셋)
 ════════════════════════════════════════ */
 const initThree = () => {
     if (!displayShell) return;
 
-    // 중복 캔버스 충돌 방지 및 초기화
+    // 중복 생성 차단: 이미 존재하던 옛날 캔버스는 무조건 삭제
     const oldCanvas = document.querySelector('#model-canvas');
     if (oldCanvas) oldCanvas.remove();
 
+    // 완전히 깨끗한 새 캔버스 생성 및 삽입
     const newCanvas = document.createElement('canvas');
     newCanvas.id = 'model-canvas';
     newCanvas.style.width = '100%';
@@ -112,25 +106,21 @@ const initThree = () => {
     renderer.setSize(width, height);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.5; // 메탈이 더 밝고 쨍하게 빛나도록 노출 가속
+    renderer.toneMappingExposure = 1.6; // 탁한 기운을 날려버릴 화사한 노출 값
 
-    // 📐 [잘림 방지 설계 1] 카메라 거리를 5.2에서 5.8로 뒤로 한 걸음 물려 시야각 확보
+    // 📐 [잘림 방지 1] 카메라를 뒤로 물려 전체적인 시야 확보
     camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 100);
     camera.position.set(0, 0, 5.8);
 
-    // 환경 맵 스튜디오 가동
+    // 반사 텍스처 환경 세팅 가동
     setupEnvironmentMap(scene, renderer);
 
-    // 입체감을 극대화할 보조 직사광선 추가
+    // 입체감을 더해줄 기본 직사광선 보강
     const dirLight1 = new THREE.DirectionalLight(0xffffff, 3.0);
     dirLight1.position.set(5, 15, 10);
     scene.add(dirLight1);
 
-    const dirLight2 = new THREE.DirectionalLight(0xffffff, 1.5);
-    dirLight2.position.set(-10, 5, 5);
-    scene.add(dirLight2);
-
-    // GLTF 로더 엔진 가동
+    // 3D 모델 로드 시작
     const loader = new GLTFLoader();
     const draco = new DRACOLoader();
     draco.setDecoderPath('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/libs/draco/');
@@ -142,24 +132,22 @@ const initThree = () => {
             if (!gltf || !gltf.scene) return;
             const model = gltf.scene;
 
-            // 🌟 반사광을 극대화하여 거울처럼 반짝이게 만드는 하이퍼 실버 크롬 재질
+            // 🌟 반사광을 5배 뻥튀기한 초고광택 실버 크롬 재질 강제 주입
             const chromeMaterial = new THREE.MeshStandardMaterial({
-                color: 0xffffff,          // 순백색 베이스 (탁한 회색 기운 삭제)
+                color: 0xffffff,          // 탁한 회색 없는 순백의 은색
                 metalness: 1.0,           // 금속성 100% 완전 메탈
-                roughness: 0.03,          // 표면을 유리처럼 매끄럽게 깎아 반사 선명도 극대화
-                envMapIntensity: 5.0,     // 환경 맵 반사광 세기를 5배로 증폭
+                roughness: 0.02,          // 표면 거칠기 최소화 (유리 같은 선명한 반사)
+                envMapIntensity: 5.0,     // 가상 반사판들의 빛을 극대화
                 side: THREE.DoubleSide
             });
 
             model.traverse((child) => {
                 if (child.isMesh) {
                     child.material = chromeMaterial;
-                    child.castShadow = false;
-                    child.receiveShadow = false;
                 }
             });
 
-            // 바운딩 박스를 기준으로 중앙 정렬
+            // 바운딩 박스로 크기 및 중심점 재정렬
             const box = new THREE.Box3().setFromObject(model);
             const center = new THREE.Vector3();
             box.getCenter(center);
@@ -167,21 +155,21 @@ const initThree = () => {
             box.getSize(size);
 
             const maxDim = Math.max(size.x, size.y, size.z);
-            // 📐 [잘림 방지 설계 2] 모델 크기 타겟 비율을 3.3에서 2.6으로 줄여 화면 내부 안전존에 안착
+            // 📐 [잘림 방지 2] 크기 비율을 안전 범위(2.6)로 축소하여 화면 정중앙 안착
             const targetBounds = 2.6; 
             const scale = targetBounds / maxDim;
             
             model.scale.setScalar(scale);
             model.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
             
-            // 시그니처 얼짱 각도 셋팅
+            // 기획서에 있던 시그니처 얼짱 각도 세팅
             model.rotation.set(Math.PI * 0.38, Math.PI * 0.05, Math.PI * 0.12);
 
             modelAnchor = new THREE.Group();
             modelAnchor.add(model);
             scene.add(modelAnchor);
 
-            // 로딩 스크린 해제
+            // 로딩 화면 제거
             const siteLoader = document.querySelector('#site-loader');
             if (siteLoader) siteLoader.classList.add('is-loaded');
         },
@@ -191,7 +179,7 @@ const initThree = () => {
 };
 
 /* ════════════════════════════════════════
-    🔄 루프 애니메이션 및 인터랙션
+    🔄 루프 애니메이션 및 부드러운 회전 효과
 ════════════════════════════════════════ */
 const animate = () => {
     window.animFrameId = requestAnimationFrame(animate);
@@ -200,17 +188,19 @@ const animate = () => {
     if (renderer && scene && camera) {
         if (modelAnchor) {
             if (isHoveringModel) {
+                // 마우스 트래킹 반응 (유연한 보간 적용)
                 const targetX = -mouseY * 0.35;
                 const targetY = mouseX * 0.45;
                 rotState.x += (targetX - rotState.x) * 0.08;
                 rotState.y += (targetY - rotState.y) * 0.08;
             } else {
+                // 마우스가 없을 때 은은하게 자동 자전
                 rotState.x += (0 - rotState.x) * 0.05;
-                rotState.y += 0.004; // 부드러운 기본 자동 회전
+                rotState.y += 0.004;
             }
             modelAnchor.rotation.x = rotState.x;
             modelAnchor.rotation.y = rotState.y;
-            // 상하로 부드럽게 유영하는 효과 추가
+            // 위아래로 부드럽게 둥둥 뜨는 가속도 효과
             modelAnchor.position.y = Math.sin(clock * 0.8) * 0.05;
         }
         renderer.render(scene, camera);
@@ -227,12 +217,16 @@ const handleResize = () => {
     camera.updateProjectionMatrix();
 };
 
+/* ════════════════════════════════════════
+    🖱️ 마우스 이벤트 감지
+════════════════════════════════════════ */
 window.addEventListener('mousemove', (e) => {
     const width = window.innerWidth || 1;
     const height = window.innerHeight || 1;
     mouseX = (e.clientX / width) * 2 - 1;
     mouseY = -(e.clientY / height) * 2 + 1;
 
+    // 마우스 커서 follower가 있다면 연동
     const follower = document.querySelector('.cursor-follower');
     if (follower) {
         follower.style.left = `${e.clientX}px`;
@@ -247,6 +241,7 @@ if (displayShell) {
 
 window.addEventListener('resize', handleResize);
 
+// 모든 스타일과 배치가 끝난 시점에 완벽하게 실행
 window.onload = () => {
     initThree();
     animate();
