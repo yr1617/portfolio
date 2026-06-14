@@ -18,6 +18,10 @@ let isHoveringModel = false;
 let clock = 0;
 const rotState = { x: 0, y: 0 };
 
+// 🌟 우리가 원하는 고정 종횡비 (가로/세로 비율, 예: 1.0은 1:1 정방형)
+// 브라우저 CSS가 이 비율을 무시하고 늘려도, 이 비율대로 캔버스 내부를 그립니다.
+const TARGET_ASPECT = 1.0; 
+
 const displayShell = document.querySelector('.landing-display-shell') || document.querySelector('#landing-display');
 const follower = document.querySelector('.cursor-follower');
 const navLinks = document.querySelectorAll('.topnav a[data-target]');
@@ -119,9 +123,9 @@ const initThree = () => {
         canvasTarget.appendChild(canvas);
     }
 
-    // 🌟 처음 켤 때 부모 요소의 실제 픽셀 크기를 정확히 캐치합니다.
-    const width  = canvasTarget.getBoundingClientRect().width || canvasTarget.clientWidth || 600;
-    const height = canvasTarget.getBoundingClientRect().height || canvasTarget.clientHeight || 600;
+    // 🌟 렌더러와 카메라는 clientWidth/Height가 아닌, 우리가 정한 고정 비율(TARGET_ASPECT)을 사용해 초기화합니다.
+    const containerWidth = canvasTarget.clientWidth || 600;
+    const initialHeight = containerWidth / TARGET_ASPECT;
 
     scene = new THREE.Scene();
 
@@ -132,15 +136,17 @@ const initThree = () => {
         powerPreference: 'high-performance'
     });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setSize(width, height);
+    // 🌟 초기 크기도 clientHeight 대신 TARGET_ASPECT 비율을 강제 적용합니다.
+    renderer.setSize(containerWidth, initialHeight);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping      = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 0.75; 
 
-    camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 100);
+    // 🌟 카메라도 TARGET_ASPECT 비율을 사용해 초기화합니다.
+    camera = new THREE.PerspectiveCamera(38, TARGET_ASPECT, 0.1, 100);
     camera.position.set(0, 0, 5.8);
 
-    // 🌟 엔진이 기동되자마자 찌그러짐을 방지하기 위해 초기 사이즈 연산을 1회 강제 실행합니다.
+    // 기동 즉시 가로세로 동기화 엔진 1회 즉시 실행 (비율 교정)
     handleResize();
 
     const applyModelMaterial = (envMap) => {
@@ -199,8 +205,8 @@ const initThree = () => {
                 const siteLoader = document.querySelector('#site-loader');
                 if (siteLoader) siteLoader.classList.add('is-loaded');
 
-                // 🌟 모델 로딩이 완전히 끝난 직후 뷰포트를 한 번 더 정렬합니다.
-                setTimeout(handleResize, 50);
+                // 모델 안착 시점에 레이아웃 마이크로 튠업
+                setTimeout(handleResize, 60);
             },
             undefined,
             (err) => { console.warn('모델 로딩 실패:', err); }
@@ -273,21 +279,24 @@ const animate = () => {
     }
 };
 
-// 🌟 비율 찌그러짐 원천 차단 핸들러
+// 🌟 [핵심 수정] 자바스크립트로 세로 찌그러짐 원천 차단 핸들러
 const handleResize = () => {
     if (!renderer || !camera || !displayShell) return;
     
-    // getBoundingClientRect를 활용하여 소수점 아래 숨겨진 크기까지 정확히 추적합니다.
-    const rect = displayShell.getBoundingClientRect();
-    const width = rect.width;
-    const height = rect.height;
+    // 🌟 CSS가 레이아웃을 왜곡시키더라도, 브라우저가 제공하는 clientWidth만 믿습니다.
+    const width = displayShell.clientWidth || displayShell.offsetWidth || 600;
     
-    if (width === 0 || height === 0) return; 
+    // 🌟 clientHeight를 무시하고, 자바스크립트 내에서 우리가 원하는 비율(TARGET_ASPECT)로 높이를 강제 재계산합니다.
+    const forcedHeight = width / TARGET_ASPECT; 
+    
+    if (width === 0 || forcedHeight === 0) return; 
 
-    camera.aspect = width / height;
+    // 🌟 카메라는 TARGET_ASPECT 비율을 고수합니다.
+    camera.aspect = TARGET_ASPECT; 
     camera.updateProjectionMatrix(); 
     
-    renderer.setSize(width, height, false); // 🌟 false 인자를 주어 CSS 레이아웃 충돌을 방지합니다.
+    // 🌟 렌더러 세로 버퍼 크기도 우리가 강제 재계산한 forcedHeight로 설정합니다.
+    renderer.setSize(width, forcedHeight); 
 };
 
 /* ════════════════════════════════════════
@@ -573,6 +582,6 @@ window.onload = () => {
     setupReveal();
     initThree();
     animate();
-    // 🌟 모든 UI 로드 직후 마지막 확인 사살용 리사이즈
-    setTimeout(handleResize, 100); 
+    // 브라우저 레이아웃 스택 안정화 후 최종 뷰포트 교정
+    setTimeout(handleResize, 150); 
 };
