@@ -105,13 +105,11 @@ const generatePureEnvironment = (renderer) => {
   const scene = new THREE.Scene();
   scene.background = null;
 
-  // 완벽한 우주적 고대비를 위해 배경 구체는 블랙 세팅
   const roomGeo = new THREE.SphereGeometry(60, 16, 16);
   const roomMat = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide });
   const room = new THREE.Mesh(roomGeo, roomMat);
   scene.add(room);
 
-  // 1. 상단 초강력 하이라이트 박스광
   const topLight = new THREE.Mesh(
     new THREE.BoxGeometry(60, 4, 60),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
@@ -119,7 +117,6 @@ const generatePureEnvironment = (renderer) => {
   topLight.position.set(0, 30, -5);
   scene.add(topLight);
 
-  // 2. 정면 우측 - 메인 칼날 반사판 (별의 에지를 하얗게 비춰줄 주광)
   const frontRight = new THREE.Mesh(
     new THREE.BoxGeometry(15, 50, 15),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
@@ -128,7 +125,6 @@ const generatePureEnvironment = (renderer) => {
   frontRight.rotation.y = -Math.PI / 4;
   scene.add(frontRight);
 
-  // 3. 정면 좌측 - 보조 은빛 반사판
   const frontLeft = new THREE.Mesh(
     new THREE.BoxGeometry(6, 50, 25),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
@@ -137,7 +133,6 @@ const generatePureEnvironment = (renderer) => {
   frontLeft.rotation.y = Math.PI / 4;
   scene.add(frontLeft);
 
-  // 4. 하단 반사광 - 바닥면 음영을 지우고 테두리를 살려주는 화이트 링
   const bottomLight = new THREE.Mesh(
     new THREE.TorusGeometry(30, 3, 8, 24),
     new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
@@ -155,7 +150,7 @@ const generatePureEnvironment = (renderer) => {
 };
 
 /* ════════════════════════════════════════
-    THREE.JS MAIN CORE (새까맣게 타는 현상 방지 로직 주입)
+    THREE.JS MAIN CORE (크기 및 크롬 재질 커스텀 튜닝)
 ════════════════════════════════════════ */
 const initThree = () => {
   if (!modelCanvas || window.__threeInitialized) return;
@@ -177,25 +172,22 @@ const initThree = () => {
   window.threeRenderer.setSize(W, H);
   window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
   
-  // ACESFilmic 노출 설정을 더 극대화하여 메탈의 화이트 하이라이트를 한계까지 인상시킴
   window.threeRenderer.toneMapping = THREE.ACESFilmicToneMapping; 
-  window.threeRenderer.toneMappingExposure = 2.2; 
+  window.threeRenderer.toneMappingExposure = 2.4; 
 
-  // 환경맵이 먹히지 않는 비상 상황을 대비한 고광량 3중 직사광 인공 배치
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 8.0);
+  const dirLight1 = new THREE.DirectionalLight(0xffffff, 9.0);
   dirLight1.position.set(20, 25, 20);
   window.threeScene.add(dirLight1);
 
-  const dirLight2 = new THREE.DirectionalLight(0xffffff, 4.0);
+  const dirLight2 = new THREE.DirectionalLight(0xffffff, 4.5);
   dirLight2.position.set(-20, -10, 15);
   window.threeScene.add(dirLight2);
 
-  const dirLight3 = new THREE.DirectionalLight(0xffffff, 3.0);
+  const dirLight3 = new THREE.DirectionalLight(0xffffff, 3.5);
   dirLight3.position.set(0, 10, -20);
   window.threeScene.add(dirLight3);
 
-  // 찰흙 같은 어둠을 걷어내기 위해 전체적인 최저 밝기(Ambient)를 크게 상향
-  const ambientLight = new THREE.AmbientLight(0xffffff, 1.2); 
+  const ambientLight = new THREE.AmbientLight(0xffffff, 1.4); 
   window.threeScene.add(ambientLight);
 
   window.threeCamera = new THREE.PerspectiveCamera(36, W / H, 0.1, 100);
@@ -217,16 +209,15 @@ const initThree = () => {
 
       const model = gltf.scene;
 
-      // 🌟 [핵심 수정] 겉돌지 않고 무조건 적용되는 거울 질감의 실버 크롬 마테리얼 정의
+      // 🌟 [재질 수정] 거울처럼 극단적으로 반사되는 리얼 실버 크롬 하이퍼 마테리얼
       const hyperChromeMat = new THREE.MeshStandardMaterial({
         color: 0xffffff,          
-        metalness: 0.98,          // 리얼 메탈 바디 구축
-        roughness: 0.04,          // 거울면처럼 매끄럽게 떨어지는 수치
-        envMapIntensity: 6.0,     // 가상 환경 스튜디오 빛을 극한으로 흡수하도록 세팅
+        metalness: 1.0,           // 0.98 -> 1.0 극한의 메탈 바디
+        roughness: 0.01,          // 0.04 -> 0.01 완벽하게 매끄러운 반사 거울면
+        envMapIntensity: 8.5,     // 6.0 -> 8.5 주변 하이라이트를 더 예리하고 강렬하게 흡수
         side: THREE.DoubleSide
       });
 
-      // 🚨 모델 내부 노드 깊숙한 곳까지 탐색하여 재질 무조건 덮어쓰기 강제 실행
       model.traverse((child) => {
         if (child.isMesh) {
           child.material = hyperChromeMat;
@@ -236,11 +227,9 @@ const initThree = () => {
         }
       });
 
-      // 가장 덩어리감이 잘 느껴지는 비스듬한 앵글 배치
       model.rotation.set(Math.PI * 0.38, Math.PI * 0.05, Math.PI * 0.12); 
       model.updateMatrixWorld(true);
 
-      // 크기 최적화 스케일링
       const box = new THREE.Box3().setFromObject(model);
       const centre = new THREE.Vector3();
       box.getCenter(centre);
@@ -248,11 +237,12 @@ const initThree = () => {
       box.getSize(size);
       
       const maxDim = Math.max(size.x, size.y, size.z);
-      const BOUNDS = 3.6; 
+      // 🌟 [크기 수정] 3D 모델 크기 살짝 축소 조정 (3.6 -> 2.5)
+      const BOUNDS = 2.5; 
       const scale = BOUNDS / maxDim;
       model.scale.setScalar(scale);
 
-      model.position.set(-centre.x * scale, -centre.y * scale, -centre.z * scale);
+      model.position.set(-centre.x * scale, -centre.y * scale, -center.z * scale);
 
       window.modelAnchor = new THREE.Group();
       window.modelAnchor.add(model);
