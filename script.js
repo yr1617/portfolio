@@ -38,7 +38,6 @@ const clamp01 = v => Math.max(0, Math.min(1, v));
 const setupEnvironmentMap = (targetScene, targetRenderer) => {
     const envScene = new THREE.Scene();
     
-    // 환경맵 내부 조명을 모두 끄고, 반사판의 쨍함만 남깁니다.
     // 1. 전면 하이라이트를 만들어줄 강력한 대형 반사판
     const plate1 = new THREE.Mesh(
         new THREE.PlaneGeometry(60, 60),
@@ -92,16 +91,16 @@ const setupEnvironmentMap = (targetScene, targetRenderer) => {
     return envMapTexture;
 };
 
-// 🌟 일반 조명이 너무 강하면 크롬이 허얗게 타버립니다. 전체적으로 조명 강도를 낮춥니다.
+// 일반 조명이 너무 강하면 크롬이 허얗게 타버립니다. 전체적으로 조명 강도를 낮춥니다.
 const setupEnvironment = (targetScene) => {
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.05); // 0.2 -> 0.05로 하향 (어두운 면 확보)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.05); 
     targetScene.add(ambientLight);
 
-    const keyLight = new THREE.DirectionalLight(0xffffff, 1.2);   // 2.5 -> 1.2로 하향
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.2);   
     keyLight.position.set(5, 10, 8);
     targetScene.add(keyLight);
 
-    const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);   // 1.0 -> 0.4로 하향
+    const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);   
     fillLight.position.set(-8, 5, 5);
     targetScene.add(fillLight);
 };
@@ -135,8 +134,6 @@ const initThree = () => {
     renderer.setSize(width, height);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping      = THREE.ACESFilmicToneMapping;
-    
-    // 🌟 [수정 핵심] 노출(Exposure)을 낮춰서 허옇게 뜬 면을 지우고 고대비 명암을 형성합니다.
     renderer.toneMappingExposure = 0.75; 
 
     camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 100);
@@ -156,16 +153,14 @@ const initThree = () => {
                 if (!gltf || !gltf.scene) return;
                 const model = gltf.scene;
 
-                // 🌟 [수정 핵심] MeshStandardMaterial에서 하이엔드 MeshPhysicalMaterial로 업그레이드.
-                // 거칠기를 0으로 만들어 완벽한 거울 표면을 구현하고, 코팅(clearcoat)을 입혀 대비를 극대화합니다.
                 const chromeMaterial = new THREE.MeshPhysicalMaterial({
-                    color:              0xffffff,     // 순백 실버 크롬 base
-                    metalness:          1.0,          // 100% 리얼 금속 질감
-                    roughness:          0.0,          // 거칠기 0 (환경맵 무늬가 칼같이 맺힘)
-                    clearcoat:          1.0,          // 메탈 표면 위에 투명 광택 코팅 레이어 추가
-                    clearcoatRoughness: 0.0,          // 코팅 표면도 극도로 매끄럽게 처리
+                    color:              0xffffff,     
+                    metalness:          1.0,          
+                    roughness:          0.0,          
+                    clearcoat:          1.0,          
+                    clearcoatRoughness: 0.0,          
                     envMap:             envMap,
-                    envMapIntensity:    4.5,          // 하이라이트가 과하게 타지 않도록 밸런스 조정
+                    envMapIntensity:    4.5,          
                     side:               THREE.FrontSide
                 });
 
@@ -199,6 +194,9 @@ const initThree = () => {
 
                 const siteLoader = document.querySelector('#site-loader');
                 if (siteLoader) siteLoader.classList.add('is-loaded');
+
+                // 🌟 모델 로드가 끝난 시점에 레이아웃 한 번 더 즉시 동기화해 찌그러짐 원천 차단
+                handleResize();
             },
             undefined,
             (err) => { console.warn('모델 로딩 실패:', err); }
@@ -221,11 +219,18 @@ const initThree = () => {
         },
         undefined,
         () => {
-            // 외부 파일 누락 시 가상 고대비 환경 스튜디오를 자체 작동시켜 백업
             const generatedEnvMap = setupEnvironmentMap(scene, renderer);
             applyModelMaterial(generatedEnvMap);
         }
     );
+
+    // 🌟 [핵심 수정] 기존 window.resize 대신 ResizeObserver를 사용하여 디스플레이 박스 크기를 실시간 칼감지
+    if (displayShell) {
+        const resizeObserver = new ResizeObserver(() => {
+            handleResize();
+        });
+        resizeObserver.observe(displayShell);
+    }
 };
 
 /* ════════════════════════════════════════
@@ -246,7 +251,6 @@ const animate = () => {
 
     if (renderer && scene && camera) {
         if (modelAnchor) {
-            // [호버 마우스 인터랙션 정상 유지]
             if (isHoveringModel) {
                 const targetX = -mouseY * 0.45;
                 const targetY = mouseX * 0.55;
@@ -254,25 +258,30 @@ const animate = () => {
                 rotState.y += (targetY - rotState.y) * 0.08;
             } else {
                 rotState.x += (0 - rotState.x) * 0.05;
-                rotState.y += 0.004; // 기본 대기 상태 회전
+                rotState.y += 0.004; 
             }
             modelAnchor.rotation.x = rotState.x;
             modelAnchor.rotation.y = rotState.y;
             
-            // 공중 유영 애니메이션
             modelAnchor.position.y = 0.35 + Math.sin(clock * 0.8) * 0.05; 
         }
         renderer.render(scene, camera);
     }
 };
 
+// 🌟 [핵심 수정] 찌그러짐을 해결하기 위해 가로세로 비율 계산 후 카메라 렌즈 매트릭스를 강제로 업데이트(`updateProjectionMatrix`)합니다.
 const handleResize = () => {
     if (!renderer || !camera || !displayShell) return;
+    
     const width = displayShell.clientWidth;
     const height = displayShell.clientHeight;
-    renderer.setSize(width, height);
+    
+    if (width === 0 || height === 0) return; // 드래그 중 0이 되는 비정상 연산 보호
+
     camera.aspect = width / height;
-    camera.updateProjectionMatrix();
+    camera.updateProjectionMatrix(); // 🌟 렌즈 비율 재설정 (찌그러짐 방지 핵심 코드)
+    
+    renderer.setSize(width, height);
 };
 
 /* ════════════════════════════════════════
@@ -442,7 +451,6 @@ const setupFolderGUI = () => {
             icon.className = 'file-icon';
             icon.textContent = item.highlight ? '★' : '›';
             
-            // 폴더 아이콘 원 내부 요소 완벽 중앙 고정 정렬 유지
             icon.style.display = 'inline-flex';
             icon.style.alignItems = 'center';
             icon.style.justifyContent = 'center';
@@ -534,6 +542,7 @@ if (displayShell) {
     displayShell.addEventListener('pointerleave', () => { isHoveringModel = false; });
 }
 
+// 🌟 브라우저 윈도우 크기 변화 이벤트 백업 유지
 window.addEventListener('resize', () => {
     handleResize();
     updateNavProgress();
