@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 
 /* ════════════════════════════════════════
     ENGINE RE-INIT PROTECTION & CLEANUP
@@ -115,24 +116,27 @@ const setupEnvironment = (targetScene) => {
     📦 THREE.JS 코어 빌드 및 레이아웃 최적화
 ════════════════════════════════════════ */
 const initThree = () => {
-    if (!displayShell) return;
+    // ★ 수정 1-A: canvas를 올바른 부모(#landing-display)에 붙인다.
+    //   기존 코드는 displayShell(.landing-display-shell)에 appendChild했는데,
+    //   CSS상 #landing-display가 캔버스를 품어야 크기 기준이 맞는다.
+    const canvasTarget = document.querySelector('#landing-display');
+    if (!canvasTarget) return;
 
-    const oldCanvas = document.querySelector('#model-canvas');
-    if (oldCanvas) oldCanvas.remove();
+    // 기존 캔버스 재활용 (이미 HTML에 있으므로)
+    let canvas = document.querySelector('#model-canvas');
+    if (!canvas) {
+        canvas = document.createElement('canvas');
+        canvas.id = 'model-canvas';
+        canvasTarget.appendChild(canvas);
+    }
 
-    const newCanvas = document.createElement('canvas');
-    newCanvas.id = 'model-canvas';
-    newCanvas.style.width = '100%';
-    newCanvas.style.height = '100%';
-    displayShell.appendChild(newCanvas);
-
-    const width = displayShell.clientWidth || 650;
-    const height = displayShell.clientHeight || 650;
+    const width  = canvasTarget.clientWidth  || 600;
+    const height = canvasTarget.clientHeight || 600;
 
     scene = new THREE.Scene();
 
     renderer = new THREE.WebGLRenderer({
-        canvas: newCanvas,
+        canvas,
         alpha: true,
         antialias: true,
         powerPreference: 'high-performance'
@@ -140,80 +144,105 @@ const initThree = () => {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(width, height);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.6; // 메탈의 대비와 광택 선명도 증폭
+    renderer.toneMapping      = THREE.ACESFilmicToneMapping;
+    // ★ 수정 2: 크롬 대비 극대화를 위해 exposure 상향
+    renderer.toneMappingExposure = 1.8;
 
     camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 100);
     camera.position.set(0, 0, 5.8);
 
-    setupEnvironmentMap(scene, renderer);
-    setupEnvironment(scene);
+    // ★ 수정 2: studio.hdr을 RGBELoader로 로드해 scene.environment에 적용.
+    //   로드 성공 시 HDR 환경맵을 사용하고, 실패(파일 없음 등) 시에는
+    //   기존 가상 스튜디오 환경맵(setupEnvironmentMap)으로 graceful fallback.
+    const applyModelMaterial = (envMap) => {
+        // 조명 세팅 (환경맵 유무 관계없이 공통 적용)
+        setupEnvironment(scene);
+        const dirLight1 = new THREE.DirectionalLight(0xffffff, 3.0);
+        dirLight1.position.set(5, 15, 10);
+        scene.add(dirLight1);
+        const dirLight2 = new THREE.DirectionalLight(0xffffff, 1.5);
+        dirLight2.position.set(-10, 5, 5);
+        scene.add(dirLight2);
 
-    const dirLight1 = new THREE.DirectionalLight(0xffffff, 3.0);
-    dirLight1.position.set(5, 15, 10);
-    scene.add(dirLight1);
+        const loader = new GLTFLoader();
+        const draco  = new DRACOLoader();
+        draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+        loader.setDRACOLoader(draco);
 
-    const dirLight2 = new THREE.DirectionalLight(0xffffff, 1.5);
-    dirLight2.position.set(-10, 5, 5);
-    scene.add(dirLight2);
+        loader.load(
+            './modeling.glb',
+            (gltf) => {
+                if (!gltf || !gltf.scene) return;
+                const model = gltf.scene;
 
-    const loader = new GLTFLoader();
-    const draco = new DRACOLoader();
-    draco.setDecoderPath('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/libs/draco/');
-    loader.setDRACOLoader(draco);
+                // ★ 수정 2: 크롬/실버 메탈 재질 — envMap을 명시 지정해 반사 극대화
+                const chromeMaterial = new THREE.MeshStandardMaterial({
+                    color:           0xffffff,
+                    metalness:       1.0,
+                    roughness:       0.03,
+                    envMap:          envMap,       // HDR or PMREM 환경맵
+                    envMapIntensity: 6.0,          // 반사 하이라이트 감도 가속
+                    side:            THREE.FrontSide
+                });
 
-    loader.load(
-        './modeling.glb',
-        (gltf) => {
-            if (!gltf || !gltf.scene) return;
-            const model = gltf.scene;
+                model.traverse((child) => {
+                    if (child.isMesh) {
+                        child.material      = chromeMaterial;
+                        child.castShadow    = false;
+                        child.receiveShadow = false;
+                    }
+                });
 
-            // 🌟 [환경맵 반사 해결] 거울 질감을 만들고 생성한 환경맵을 명시적으로 수동 매핑
-            const chromeMaterial = new THREE.MeshStandardMaterial({
-                color: 0xffffff,
-                metalness: 1.0,
-                roughness: 0.03,
-                envMap: scene.environment, // 크롬 표면에 스튜디오 반사판 맵 연결
-                envMapIntensity: 6.0,      // 반사 하이라이트 감도 가속
-                side: THREE.DoubleSide
-            });
+                // 모델 스케일 & 센터링
+                const box    = new THREE.Box3().setFromObject(model);
+                const centre = new THREE.Vector3();
+                box.getCenter(centre);
+                const size   = new THREE.Vector3();
+                box.getSize(size);
+                const maxDim     = Math.max(size.x, size.y, size.z);
+                const targetBounds = 2.9;
+                const scale      = targetBounds / maxDim;
 
-            model.traverse((child) => {
-                if (child.isMesh) {
-                    child.material = chromeMaterial;
-                    child.castShadow = false;
-                    child.receiveShadow = false;
-                }
-            });
+                model.scale.setScalar(scale);
+                model.position.set(-centre.x * scale, -centre.y * scale, -centre.z * scale);
+                model.rotation.set(Math.PI * 0.38, Math.PI * 0.05, Math.PI * 0.12);
 
-            const box = new THREE.Box3().setFromObject(model);
-            const center = new THREE.Vector3();
-            box.getCenter(center);
-            const size = new THREE.Vector3();
-            box.getSize(size);
+                modelAnchor = new THREE.Group();
+                modelAnchor.add(model);
+                modelAnchor.position.set(0, 0.35, 0);
+                scene.add(modelAnchor);
 
-            const maxDim = Math.max(size.x, size.y, size.z);
-            
-            // 🌟 [모델 크기 및 위치 보정] 크기를 늘리고(2.6 -> 2.9) 위쪽 공간으로 앵커 위치 오프셋 상향 조정
-            const targetBounds = 2.9; 
-            const scale = targetBounds / maxDim;
+                const siteLoader = document.querySelector('#site-loader');
+                if (siteLoader) siteLoader.classList.add('is-loaded');
+            },
+            undefined,
+            (err) => { console.warn('모델 로딩 실패:', err); }
+        );
+    };
 
-            model.scale.setScalar(scale);
-            model.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
-            model.rotation.set(Math.PI * 0.38, Math.PI * 0.05, Math.PI * 0.12);
+    // ★ 수정 2: RGBELoader로 studio.hdr 로드 시도
+    const rgbeLoader = new RGBELoader();
+    rgbeLoader.load(
+        './studio.hdr',
+        (hdrTexture) => {
+            // HDR 로드 성공 — PMREM으로 변환해 environment 적용
+            const pmrem = new THREE.PMREMGenerator(renderer);
+            pmrem.compileEquirectangularShader();
+            const envMap = pmrem.fromEquirectangular(hdrTexture).texture;
+            hdrTexture.dispose();
+            pmrem.dispose();
 
-            modelAnchor = new THREE.Group();
-            modelAnchor.add(model);
-            
-            // 기본 축 Y 좌표를 위로 올려 모델링이 아래로 처지지 않게 설정
-            modelAnchor.position.set(0, 0.35, 0); 
-            scene.add(modelAnchor);
-
-            const siteLoader = document.querySelector('#site-loader');
-            if (siteLoader) siteLoader.classList.add('is-loaded');
+            scene.environment   = envMap;
+            scene.background    = null; // 배경은 투명 유지
+            applyModelMaterial(envMap);
         },
         undefined,
-        (err) => { console.warn('모델 로딩 실패:', err); }
+        () => {
+            // HDR 로드 실패 — 가상 스튜디오 환경맵으로 fallback
+            console.warn('studio.hdr 로드 실패 — 가상 환경맵으로 대체합니다.');
+            setupEnvironmentMap(scene, renderer);
+            applyModelMaterial(scene.environment);
+        }
     );
 };
 
