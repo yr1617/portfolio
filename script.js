@@ -81,6 +81,9 @@ const setupEnvironmentMap = (targetScene, targetRenderer) => {
     const envMapTexture = pmremGenerator.fromScene(envScene).texture;
     
     targetScene.environment = envMapTexture;
+    if (targetScene.environment) {
+        targetScene.environment.needsUpdate = true;
+    }
     
     envScene.traverse((child) => {
         if (child.isMesh) {
@@ -138,10 +141,10 @@ const initThree = () => {
     renderer.setSize(width, height);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.5; // 메탈이 더 밝고 쨍하게 빛나도록 노출 가속
+    renderer.toneMappingExposure = 1.6; // 메탈의 대비와 광택 선명도 증폭
 
     camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 100);
-    camera.position.set(0, 0, 5.8); // 📐 잘림 방지 거리 확보
+    camera.position.set(0, 0, 5.8);
 
     setupEnvironmentMap(scene, renderer);
     setupEnvironment(scene);
@@ -165,12 +168,13 @@ const initThree = () => {
             if (!gltf || !gltf.scene) return;
             const model = gltf.scene;
 
-            // 🌟 거울처럼 주변 광택을 완벽 반사시키는 하이퍼 실버 크롬 재질 세팅
+            // 🌟 [환경맵 반사 해결] 거울 질감을 만들고 생성한 환경맵을 명시적으로 수동 매핑
             const chromeMaterial = new THREE.MeshStandardMaterial({
-                color: 0xffffff,          // 순백색 베이스
-                metalness: 1.0,           // 금속성 100% 완전 메탈
-                roughness: 0.03,          // 표면을 유리처럼 매끄럽게 깎아 반사도 극대화
-                envMapIntensity: 5.0,     // 환경 맵 반사광 세기를 5배로 증폭
+                color: 0xffffff,
+                metalness: 1.0,
+                roughness: 0.03,
+                envMap: scene.environment, // 크롬 표면에 스튜디오 반사판 맵 연결
+                envMapIntensity: 6.0,      // 반사 하이라이트 감도 가속
                 side: THREE.DoubleSide
             });
 
@@ -189,15 +193,20 @@ const initThree = () => {
             box.getSize(size);
 
             const maxDim = Math.max(size.x, size.y, size.z);
-            const targetBounds = 2.6; // 📐 크기 비율을 2.6으로 줄여 안전존에 안착
+            
+            // 🌟 [모델 크기 및 위치 보정] 크기를 늘리고(2.6 -> 2.9) 위쪽 공간으로 앵커 위치 오프셋 상향 조정
+            const targetBounds = 2.9; 
             const scale = targetBounds / maxDim;
 
             model.scale.setScalar(scale);
             model.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
-            model.rotation.set(Math.PI * 0.38, Math.PI * 0.05, Math.PI * 0.12); // 시그니처 얼짱 각도
+            model.rotation.set(Math.PI * 0.38, Math.PI * 0.05, Math.PI * 0.12);
 
             modelAnchor = new THREE.Group();
             modelAnchor.add(model);
+            
+            // 기본 축 Y 좌표를 위로 올려 모델링이 아래로 처지지 않게 설정
+            modelAnchor.position.set(0, 0.35, 0); 
             scene.add(modelAnchor);
 
             const siteLoader = document.querySelector('#site-loader');
@@ -215,7 +224,7 @@ const animate = () => {
     window.animFrameId = requestAnimationFrame(animate);
     clock += 0.01;
 
-    // 마우스 커서 부드러운 Lerp 보간 연산 엔진 [완벽 복구]
+    // 마우스 커서 부드러운 Lerp 보간 연산 엔진
     pointer.x += (pointer.tx - pointer.x) * 0.12;
     pointer.y += (pointer.ty - pointer.y) * 0.12;
 
@@ -226,18 +235,21 @@ const animate = () => {
 
     if (renderer && scene && camera) {
         if (modelAnchor) {
+            // 🌟 [호버 인터랙션 복구 완료] 마우스 진입 시 마우스 무브먼트를 정확히 쫓아 3D 회전 반사각 형성
             if (isHoveringModel) {
-                const targetX = -mouseY * 0.35;
-                const targetY = mouseX * 0.45;
+                const targetX = -mouseY * 0.45;
+                const targetY = mouseX * 0.55;
                 rotState.x += (targetX - rotState.x) * 0.08;
                 rotState.y += (targetY - rotState.y) * 0.08;
             } else {
                 rotState.x += (0 - rotState.x) * 0.05;
-                rotState.y += 0.004; // 부드러운 기본 자동 회전
+                rotState.y += 0.004; // 기본 자동 부드러운 전방향 회전
             }
             modelAnchor.rotation.x = rotState.x;
             modelAnchor.rotation.y = rotState.y;
-            modelAnchor.position.y = Math.sin(clock * 0.8) * 0.05; // 부드러운 상하 유영 효과
+            
+            // 기존 고유 유영 애니메이션에 앵커 기본 높이(0.35)를 결합하여 안정적 위아래 유영 구현
+            modelAnchor.position.y = 0.35 + Math.sin(clock * 0.8) * 0.05; 
         }
         renderer.render(scene, camera);
     }
@@ -315,7 +327,7 @@ const updateNavProgress = () => {
 };
 
 /* ════════════════════════════════════════
-    📂 FOLDER GUI ARCHIVE INTERACTION [컨텐츠 데이터 완전 보존]
+    📂 FOLDER GUI ARCHIVE INTERACTION
 ════════════════════════════════════════ */
 const FOLDER_DATA = {
     academic: {
@@ -418,6 +430,11 @@ const setupFolderGUI = () => {
             const icon = document.createElement('span');
             icon.className = 'file-icon';
             icon.textContent = item.highlight ? '★' : '›';
+            
+            // 🌟 [폴더 아이콘 원 내부 정렬] 글씨 또는 별 모양이 서클 도형 정중앙에 고정되도록 강제 정렬 스타일 적용
+            icon.style.display = 'inline-flex';
+            icon.style.alignItems = 'center';
+            icon.style.justifyContent = 'center';
 
             const text = document.createElement('span');
             text.textContent = item.text;
@@ -489,7 +506,7 @@ const setupReveal = () => {
 };
 
 /* ════════════════════════════════════════
-    ✨ HOVER & MOUSE POINTER LOGIC
+    ✨ EVENT LISTENERS & INTERACTION SYSTEM
 ════════════════════════════════════════ */
 window.addEventListener('mousemove', (e) => {
     pointer.tx = e.clientX;
@@ -511,7 +528,6 @@ window.addEventListener('resize', () => {
     updateNavProgress();
 });
 
-// 🌟 스크롤 시 뒷배경 스포트라이트 동기화 및 내비 바 연동
 window.addEventListener('scroll', () => {
     updateNavProgress();
     const spotlight = document.querySelector('.page-spotlight');
