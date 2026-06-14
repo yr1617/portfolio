@@ -2,629 +2,281 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
-/* ════════════════════════════════════════
-    ENGINE RE-INIT PROTECTION
-════════════════════════════════════════ */
+// 애니메이션 프레임 전역 관리
+// 기존 애니메이션 루프 및 잔여 데이터 완벽 제거
 if (window.animFrameId) {
-  cancelAnimationFrame(window.animFrameId);
-  window.animFrameId = null;
+    cancelAnimationFrame(window.animFrameId);
+    window.animFrameId = null;
 }
-if (window.threeRenderer) {
-  window.threeRenderer.dispose();
-  window.threeRenderer = null;
-}
-window.threeScene    = null;
-window.threeCamera   = null;
-window.modelAnchor   = null;
-window.__threeInitialized = false;
 
-/* ════════════════════════════════════════
-    DOM REFS & 전역 변수
-════════════════════════════════════════ */
-const landing        = document.querySelector('.landing');
-const landingCanvas  = document.querySelector('.landing-canvas');
-const landingDisplay = document.querySelector('#landing-display');
-const modelCanvas    = document.querySelector('#model-canvas');
-const follower       = document.querySelector('.cursor-follower');
-const navLinks       = document.querySelectorAll('.topnav a[data-target]');
-const sections       = [];
-
-const eliminateFakeModels = () => {
-  ['#crystal-fallback','#codex-3d','.fallback-layer','.crystal-backup','#three-debug-hud'].forEach(sel => {
-    const el = document.querySelector(sel);
-    if (el) el.style.setProperty('display','none','important');
-  });
-};
-
-const mouse = { x: 0, y: 0 };
-const pointer = {
-  x: window.innerWidth * 0.5,  y: window.innerHeight * 0.5,
-  tx: window.innerWidth * 0.5, ty: window.innerHeight * 0.5
-};
-const clamp01 = v => Math.max(0, Math.min(1, v));
-
+// 전역 변수 선언 (통일)
+let scene, camera, renderer, modelAnchor;
+let mouseX = 0, mouseY = 0;
+let isHoveringModel = false;
+const clock = new THREE.Clock();
 const rotState = { x: 0, y: 0 };
-let isHoveringModel = false; 
+
+const displayShell = document.querySelector('.landing-display-shell') || document.querySelector('#landing-display');
 
 /* ════════════════════════════════════════
-    LANDING CANVAS BACKGROUND
+    ✨ 메탈 텍스처를 살려주는 초간결 조명/환경 시스템
+    ✨ 하이퍼 크롬을 위한 가상 스튜디오 환경 맵 생성
 ════════════════════════════════════════ */
-const setupLandingCanvas = () => {
-  if (!landing || !landingCanvas) return null;
-  const ctx = landingCanvas.getContext('2d');
-  if (!ctx) return null;
-  let state = { width: 0, height: 0, dpr: 1 };
+const setupEnvironment = (targetScene) => {
+    // 사방에서 들어오는 은은한 기본 빛 (진흙처럼 어두워지는 현상 방지)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
+    targetScene.add(ambientLight);
 
-  const resize = () => {
-    const rect = landing.getBoundingClientRect();
-    state.width  = rect.width;
-    state.height = rect.height;
-    state.dpr    = Math.min(window.devicePixelRatio || 1, 1.5);
+    // 정면과 측면에서 메탈 질감을 하얗게 반사시킬 강력한 직사광선 배치
+    const keyLight = new THREE.DirectionalLight(0xffffff, 4.0);
+    keyLight.position.set(5, 8, 10);
+    targetScene.add(keyLight);
+
+    const fillLight = new THREE.DirectionalLight(0xffffff, 2.0);
+    fillLight.position.set(-8, 5, 5);
+    targetScene.add(fillLight);
+
+    const topLight = new THREE.DirectionalLight(0xffffff, 2.5);
+    topLight.position.set(0, 15, 2);
+    targetScene.add(topLight);
+};
+
+const setupEnvironmentMap = (targetScene, targetRenderer) => {
+    // 흑화 현상을 막고 금속면에 반사될 고대비 불빛 판들을 가상 공간에 배치합니다.
+    const envScene = new THREE.Scene();
     
-    landingCanvas.width  = Math.max(1, Math.floor(rect.width  * state.dpr));
-    landingCanvas.height = Math.max(1, Math.floor(rect.height * state.dpr));
-    landingCanvas.style.width  = `${rect.width}px`;
-    landingCanvas.style.height = `${rect.height}px`;
-    ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
-  };
+    // 은은한 전체 배경 베이스광
+    const baseLight = new THREE.AmbientLight(0xffffff, 1.0);
+    envScene.add(baseLight);
 
-  const draw = () => {
-    const { width, height } = state;
-    if (!width || !height) return;
-    ctx.clearRect(0, 0, width, height);
-    const rect = landing.getBoundingClientRect();
-    const px = pointer.x - rect.left;
-    const py = pointer.y - rect.top;
-    const glow = ctx.createRadialGradient(px, py, 0, px, py, Math.max(width, height) * 0.52);
-    glow.addColorStop(0,   'rgba(255,255,255,0.09)');
-    glow.addColorStop(0.3, 'rgba(160,110,255,0.04)');
-    glow.addColorStop(1,   'rgba(16,16,18,0)');
-    ctx.fillStyle = glow;
-    ctx.fillRect(0, 0, width, height);
-  };
+    // 1. 전면 하이라이트를 만들어줄 강력한 대형 반사판
+    const plate1 = new THREE.Mesh(
+        new THREE.PlaneGeometry(50, 50),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
+    );
+    plate1.position.set(0, 10, 30);
+    plate1.lookAt(0, 0, 0);
+    envScene.add(plate1);
 
-  resize();
-  return { resize, draw };
-};
+    // 2. 좌측 측면 메탈 라인을 살려줄 백색 반사판
+    const plate2 = new THREE.Mesh(
+        new THREE.PlaneGeometry(30, 60),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
+    );
+    plate2.position.set(-25, 15, 10);
+    plate2.lookAt(0, 0, 0);
+    envScene.add(plate2);
 
-let landingCanvasCtrl = null;
+    // 3. 우측 모서리에 날카로운 광택을 더해줄 고대비 흑백 반사판
+    const plate3 = new THREE.Mesh(
+        new THREE.PlaneGeometry(20, 50),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
+    );
+    plate3.position.set(25, -5, 15);
+    plate3.lookAt(0, 0, 0);
+    envScene.add(plate3);
 
-const updateLandingVars = () => {
-  if (!landing) return;
-  const rect = landing.getBoundingClientRect();
-  const x = ((pointer.x - rect.left) / Math.max(rect.width,  1)) * 100;
-  const y = ((pointer.y - rect.top)  / Math.max(rect.height, 1)) * 100;
-  landing.style.setProperty('--pointer-x', `${clamp01(x/100)*100}%`);
-  landing.style.setProperty('--pointer-y', `${clamp01(y/100)*100}%`);
-};
+    // 4. 상단 천장 조명판
+    const plate4 = new THREE.Mesh(
+        new THREE.PlaneGeometry(60, 60),
+        new THREE.MeshBasicMaterial({ color: 0xdddddd, side: THREE.DoubleSide })
+    );
+    plate4.position.set(0, 35, 0);
+    plate4.rotation.x = Math.PI / 2;
+    envScene.add(plate4);
 
-/* ════════════════════════════════════════
-    강한 대비를 만드는 하이퍼 크롬 스튜디오 환경 (광량 대폭 강화)
-════════════════════════════════════════ */
-const generatePureEnvironment = (renderer) => {
-  const scene = new THREE.Scene();
-  scene.background = null;
-
-  const roomGeo = new THREE.SphereGeometry(60, 16, 16);
-  const roomMat = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide });
-  const room = new THREE.Mesh(roomGeo, roomMat);
-  scene.add(room);
-
-  const topLight = new THREE.Mesh(
-    new THREE.BoxGeometry(60, 4, 60),
-    new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
-  );
-  topLight.position.set(0, 30, -5);
-  scene.add(topLight);
-
-  const frontRight = new THREE.Mesh(
-    new THREE.BoxGeometry(15, 50, 15),
-    new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
-  );
-  frontRight.position.set(25, 10, 25);
-  frontRight.rotation.y = -Math.PI / 4;
-  scene.add(frontRight);
-
-  const frontLeft = new THREE.Mesh(
-    new THREE.BoxGeometry(6, 50, 25),
-    new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
-  );
-  frontLeft.position.set(-25, 5, 20);
-  frontLeft.rotation.y = Math.PI / 4;
-  scene.add(frontLeft);
-
-  const bottomLight = new THREE.Mesh(
-    new THREE.TorusGeometry(30, 3, 8, 24),
-    new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })
-  );
-  bottomLight.position.set(0, -25, 0);
-  bottomLight.rotation.x = Math.PI / 2;
-  scene.add(bottomLight);
-
-  const pmrem = new THREE.PMREMGenerator(renderer);
-  pmrem.compileEquirectangularShader();
-  const rt = pmrem.fromScene(scene);
-  pmrem.dispose();
-  rt.texture.mapping = THREE.CubeReflectionMapping;
-  return rt.texture;
+    // 가상 스튜디오 풍경을 360도 환경 텍스처(PMREM)로 램에 굽습니다.
+    const pmremGenerator = new THREE.PMREMGenerator(targetRenderer);
+    pmremGenerator.compileEquirectangularShader();
+    const envMapTexture = pmremGenerator.fromScene(envScene).texture;
+    
+    // 메인 씬의 환경 맵으로 등록 (이제 메탈 재질이 이 가상 스튜디오를 반사합니다)
+    targetScene.environment = envMapTexture;
+    
+    // 메모리 해제 및 정리
+    envScene.traverse((child) => {
+        if (child.isMesh) {
+            child.geometry.dispose();
+            child.material.dispose();
+        }
+    });
+    pmremGenerator.dispose();
 };
 
 /* ════════════════════════════════════════
-    THREE.JS MAIN CORE (크기 및 크롬 재질 커스텀 튜닝)
+    📦 THREE.JS 완전 초기화 (물리적 캔버스 리셋 방식)
 ════════════════════════════════════════ */
 const initThree = () => {
-  if (!modelCanvas || window.__threeInitialized) return;
-  window.__threeInitialized = true;
+    if (!displayShell) return;
 
-  window.threeScene = new THREE.Scene();
+    // 중복 캔버스 충돌 방지 및 초기화
+    const oldCanvas = document.querySelector('#model-canvas');
+    if (oldCanvas) oldCanvas.remove();
 
-  const shell = landingDisplay || { offsetWidth: 650, offsetHeight: 650 };
-  const W = shell.offsetWidth;
-  const H = shell.offsetHeight;
+    const newCanvas = document.createElement('canvas');
+    newCanvas.id = 'model-canvas';
+    newCanvas.style.width = '100%';
+    newCanvas.style.height = '100%';
+    displayShell.appendChild(newCanvas);
 
-  window.threeRenderer = new THREE.WebGLRenderer({
-    canvas: modelCanvas,
-    alpha: true,
-    antialias: true,
-    powerPreference: 'high-performance',
-  });
-  window.threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  window.threeRenderer.setSize(W, H);
-  window.threeRenderer.outputColorSpace = THREE.SRGBColorSpace;
-  
-  window.threeRenderer.toneMapping = THREE.ACESFilmicToneMapping; 
-  window.threeRenderer.toneMappingExposure = 2.4; 
+    const width = displayShell.clientWidth || 650;
+    const height = displayShell.clientHeight || 650;
 
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 9.0);
-  dirLight1.position.set(20, 25, 20);
-  window.threeScene.add(dirLight1);
+    scene = new THREE.Scene();
 
-  const dirLight2 = new THREE.DirectionalLight(0xffffff, 4.5);
-  dirLight2.position.set(-20, -10, 15);
-  window.threeScene.add(dirLight2);
+    renderer = new THREE.WebGLRenderer({
+        canvas: newCanvas,
+        alpha: true,
+        antialias: true,
+        powerPreference: 'high-performance'
+    });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(width, height);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.5; // 메탈이 더 밝고 쨍하게 빛나도록 노출 가속
 
-  const dirLight3 = new THREE.DirectionalLight(0xffffff, 3.5);
-  dirLight3.position.set(0, 10, -20);
-  window.threeScene.add(dirLight3);
+    // 📐 [잘림 방지 설계 1] 카메라 거리를 뒤로 한 걸음 물려 시야각 확보
+    camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 100);
+    camera.position.set(0, 0, 5.8);
 
-  const ambientLight = new THREE.AmbientLight(0xffffff, 1.4); 
-  window.threeScene.add(ambientLight);
+    // 환경 맵 스튜디오 가동
+    setupEnvironmentMap(scene, renderer);
 
-  window.threeCamera = new THREE.PerspectiveCamera(36, W / H, 0.1, 100);
-  window.threeCamera.position.set(0, 0, 5.0);
+    // 입체감을 극대화할 보조 직사광선 추가
+    const dirLight1 = new THREE.DirectionalLight(0xffffff, 3.0);
+    dirLight1.position.set(5, 15, 10);
+    scene.add(dirLight1);
 
-  const envTexture = generatePureEnvironment(window.threeRenderer);
-  window.threeScene.environment = envTexture;
+    setupEnvironment(scene);
 
-  const loader = new GLTFLoader();
-  const draco  = new DRACOLoader();
-  draco.setDecoderPath('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/libs/draco/');
-  loader.setDRACOLoader(draco);
+    const dirLight2 = new THREE.DirectionalLight(0xffffff, 1.5);
+    dirLight2.position.set(-10, 5, 5);
+    scene.add(dirLight2);
 
-  loader.load(
-    `./modeling.glb?v=${Math.random()}`,
-    (gltf) => {
-      if (!gltf || !gltf.scene) { hideSiteLoader(); return; }
-      if (window.modelAnchor) window.threeScene.remove(window.modelAnchor);
+    // GLTF 로더 엔진 가동
+    const loader = new GLTFLoader();
+    const draco = new DRACOLoader();
+    draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+    loader.setDRACOLoader(draco);
 
-      const model = gltf.scene;
+    loader.load(
+        './modeling.glb',
+        (gltf) => {
+            if (!gltf || !gltf.scene) return;
+            const model = gltf.scene;
 
-      // 🌟 [재질 수정] 거울처럼 극단적으로 반사되는 리얼 실버 크롬 하이퍼 마테리얼
-      const hyperChromeMat = new THREE.MeshStandardMaterial({
-        color: 0xffffff,          
-        metalness: 1.0,           // 0.98 -> 1.0 극한의 메탈 바디
-        roughness: 0.01,          // 0.04 -> 0.01 완벽하게 매끄러운 반사 거울면
-        envMapIntensity: 8.5,     // 6.0 -> 8.5 주변 하이라이트를 더 예리하고 강렬하게 흡수
-        side: THREE.DoubleSide
-      });
+            // 🌟 반사광을 극대화하여 거울처럼 반짝이게 만드는 하이퍼 실버 크롬 재질
+            const chromeMaterial = new THREE.MeshStandardMaterial({
+                color: 0xffffff,          // 순백색 베이스 (탁한 회색 기운 삭제)
+                metalness: 1.0,           // 금속성 100% 완전 메탈
+                roughness: 0.03,          // 표면을 유리처럼 매끄럽게 깎아 반사 선명도 극대화
+                envMapIntensity: 5.0,     // 환경 맵 반사광 세기를 5배로 증폭
+                side: THREE.DoubleSide
+            });
 
-      model.traverse((child) => {
-        if (child.isMesh) {
-          child.material = hyperChromeMat;
-          child.material.needsUpdate = true;
-          child.castShadow = false;
-          child.receiveShadow = false;
+            model.traverse((child) => {
+                if (child.isMesh) {
+                    child.material = chromeMaterial;
+                    child.castShadow = false;
+                    child.receiveShadow = false;
+                }
+            });
+
+            // 바운딩 박스를 기준으로 중앙 정렬
+            const box = new THREE.Box3().setFromObject(model);
+            const center = new THREE.Vector3();
+            box.getCenter(center);
+            const size = new THREE.Vector3();
+            box.getSize(size);
+
+            const maxDim = Math.max(size.x, size.y, size.z);
+            // 📐 [잘림 방지 설계 2] 모델 크기 타겟 비율을 줄여 화면 내부 안전존에 안착
+            const targetBounds = 2.6; 
+            const scale = targetBounds / maxDim;
+
+            model.scale.setScalar(scale);
+            // 원본 모델의 꼬인 좌표축을 정중앙(0,0,0)으로 강제 일치시킵니다.
+            model.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
+
+            // 시그니처 얼짱 각도 셋팅
+            model.rotation.set(Math.PI * 0.38, Math.PI * 0.05, Math.PI * 0.12);
+
+            modelAnchor = new THREE.Group();
+            modelAnchor.add(model);
+            scene.add(modelAnchor);
+
+            // 로딩 스크린 해제
+            const siteLoader = document.querySelector('#site-loader');
+            if (siteLoader) {
+                siteLoader.classList.add('is-loaded');
+                siteLoader.style.display = 'none';
+            }
+        },
+        undefined,
+        (err) => {
+            console.warn('모델 로딩 실패:', err);
         }
-      });
-
-      model.rotation.set(Math.PI * 0.38, Math.PI * 0.05, Math.PI * 0.12); 
-      model.updateMatrixWorld(true);
-
-      const box = new THREE.Box3().setFromObject(model);
-      const centre = new THREE.Vector3();
-      box.getCenter(centre);
-      const size = new THREE.Vector3();
-      box.getSize(size);
-      
-      const maxDim = Math.max(size.x, size.y, size.z);
-      // 🌟 [크기 수정] 3D 모델 크기 살짝 축소 조정 (3.6 -> 2.5)
-      const BOUNDS = 2.5; 
-      const scale = BOUNDS / maxDim;
-      model.scale.setScalar(scale);
-
-      model.position.set(-centre.x * scale, -centre.y * scale, -center.z * scale);
-
-      window.modelAnchor = new THREE.Group();
-      window.modelAnchor.add(model);
-      window.modelAnchor.position.set(0, 0, 0); 
-      
-      window.threeScene.add(window.modelAnchor);
-
-      eliminateFakeModels();
-      hideSiteLoader();
-    },
-    undefined,
-    (err) => {
-      console.warn('GLB 로드 실패', err);
-      hideSiteLoader();
-    }
-  );
-};
-
-const hideSiteLoader = () => {
-  const siteLoader = document.querySelector('#site-loader');
-  if (siteLoader) {
-    setTimeout(() => siteLoader.classList.add('is-loaded'), 500);
-  }
-};
-
-const resizeThree = () => {
-  if (!window.threeRenderer || !window.threeCamera) return;
-  
-  const shell = landingDisplay || { offsetWidth: 650, offsetHeight: 650 };
-  const W = shell.offsetWidth;
-  const H = shell.offsetHeight;
-
-  window.threeRenderer.setSize(W, H);
-  window.threeCamera.aspect = W / H;
-  window.threeCamera.updateProjectionMatrix();
+    );
 };
 
 /* ════════════════════════════════════════
-    SCROLL INDICATOR
+    🔄 루프 애니메이션 및 인터랙션
 ════════════════════════════════════════ */
-const buildSectionMap = () => {
-  navLinks.forEach(link => {
-    const id = link.getAttribute('data-target');
-    const el = document.getElementById(id);
-    if (el) sections.push({ link, el, id, progress: link.querySelector('.nav-progress') });
-  });
-};
-
-const updateNavProgress = () => {
-  const scrollY     = window.scrollY;
-  const winH        = window.innerHeight;
-  const docH        = document.documentElement.scrollHeight;
-  const headerH      = 92;
-
-  let activeIdx = -1;
-  let maxCoverage = -1;
-
-  sections.forEach((sec, i) => {
-    const rect  = sec.el.getBoundingClientRect();
-    const top   = rect.top + scrollY - headerH;
-    const bot   = top + rect.height;
-
-    const visTop  = Math.max(scrollY, top);
-    const visBot  = Math.min(scrollY + winH, bot);
-    const overlap = Math.max(0, visBot - visTop);
-    const coverage = overlap / Math.max(rect.height, 1);
-
-    if (coverage > maxCoverage) {
-      maxCoverage = coverage;
-      activeIdx   = i;
-    }
-  });
-
-  const isAtBottom = (scrollY + winH >= docH - 8);
-
-  sections.forEach((sec, i) => {
-    if (i !== activeIdx) {
-      sec.progress.style.setProperty('--nav-p', '0');
-      sec.link.classList.remove('is-active');
-      return;
-    }
-
-    sec.link.classList.add('is-active');
-
-    const rect     = sec.el.getBoundingClientRect();
-    const secTop   = rect.top + scrollY - headerH;
-    const secH     = rect.height;
-
-    const scrolledInSection = scrollY - secTop;
-    const totalScrollableRange = secH - (i === sections.length - 1 ? winH - headerH : 100);
-    let raw = totalScrollableRange > 0 ? scrolledInSection / totalScrollableRange : 0;
-    
-    if (scrolledInSection + winH >= secH + 80) raw = 1.0;
-    if (isAtBottom && i === sections.length - 1) raw = 1.0;
-
-    sec.progress.style.setProperty('--nav-p', clamp01(raw).toFixed(4));
-  });
-};
-
-/* ════════════════════════════════════════
-    MAIN ANIMATION LOOP
-════════════════════════════════════════ */
-let clock = 0;
-
 const animate = () => {
-  window.animFrameId = requestAnimationFrame(animate);
-  clock = Date.now() * 0.001;
+    window.animFrameId = requestAnimationFrame(animate);
+    
+    const elapsedTime = clock.getElapsedTime();
 
-  pointer.x += (pointer.tx - pointer.x) * 0.12;
-  pointer.y += (pointer.ty - pointer.y) * 0.12;
-
-  if (follower) {
-    follower.style.left = `${pointer.x}px`;
-    follower.style.top  = `${pointer.y}px`;
-  }
-
-  updateLandingVars();
-  if (landingCanvasCtrl && landingCanvasCtrl.draw) landingCanvasCtrl.draw();
-
-  if (window.threeRenderer && window.threeScene && window.threeCamera) {
-    if (window.modelAnchor && window.modelAnchor.rotation) {
-      let targetX = 0;
-      let targetY = 0;
-
-      if (isHoveringModel) {
-        targetX = -mouse.y * 0.25;
-        targetY = mouse.x * 0.35;
-        
-        rotState.x += (targetX - rotState.x) * 0.1;
-        rotState.y += (targetY - rotState.y) * 0.1;
-      } else {
-        rotState.x += (0 - rotState.x) * 0.05;
-        rotState.y += 0.004; 
-      }
-
-      window.modelAnchor.rotation.x = rotState.x;
-      window.modelAnchor.rotation.y = rotState.y;
-      window.modelAnchor.position.y = Math.sin(clock * 0.6) * 0.03; 
+    if (renderer && scene && camera) {
+        if (modelAnchor) {
+            if (isHoveringModel) {
+                // 마우스 트래킹 반응
+                const targetX = -mouseY * 0.35;
+                const targetY = mouseX * 0.45;
+                rotState.x += (targetX - rotState.x) * 0.08;
+                rotState.y += (targetY - rotState.y) * 0.08;
+            } else {
+                // 부드러운 기본 자동 회전
+                rotState.x += (0 - rotState.x) * 0.05;
+                rotState.y += 0.004; 
+            }
+            modelAnchor.rotation.x = rotState.x;
+            modelAnchor.rotation.y = rotState.y;
+            // 상하로 부드럽게 유영하는 효과 추가
+            modelAnchor.position.y = Math.sin(elapsedTime * 0.8) * 0.05;
+        }
+        renderer.render(scene, camera);
     }
-    window.threeRenderer.render(window.threeScene, window.threeCamera);
-  }
 };
 
-/* ════════════════════════════════════════
-    HOVER & POINTER EVENTS
-════════════════════════════════════════ */
-const setupHoverEvents = () => {
-  window.addEventListener('mousemove', (e) => {
-    pointer.tx = e.clientX;
-    pointer.ty = e.clientY;
+const handleResize = () => {
+    if (!renderer || !camera || !displayShell) return;
+    const width = displayShell.clientWidth;
+    const height = displayShell.clientHeight;
     
-    if (isHoveringModel) {
-      const winW = window.innerWidth || 1;
-      const winH = window.innerHeight || 1;
-      mouse.x = (e.clientX / winW) * 2 - 1;
-      mouse.y = -(e.clientY / winH) * 2 + 1;
-    }
-  }, { passive: true });
+    renderer.setSize(width, height);
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+};
 
-  const displayShell = document.querySelector('.landing-display-shell');
-  if (displayShell) {
+// 이벤트 리스너 정의
+window.addEventListener('mousemove', (e) => {
+    const width = window.innerWidth || 1;
+    const height = window.innerHeight || 1;
+    mouseX = (e.clientX / width) * 2 - 1;
+    mouseY = -(e.clientY / height) * 2 + 1;
+}, { passive: true });
+
+if (displayShell) {
     displayShell.addEventListener('pointerenter', () => { isHoveringModel = true; });
     displayShell.addEventListener('pointerleave', () => { isHoveringModel = false; });
-  }
-};
-
-/* ════════════════════════════════════════
-    FOLDER GUI ARCHIVE INTERACTION
-════════════════════════════════════════ */
-const FOLDER_DATA = {
-  academic: {
-    title: '교과 프로젝트 경험',
-    path:  '~/archive/academic/',
-    items: [
-      { text: '학생 마음 건강 콘텐츠 공모전, 포스터 부문 참여', highlight: false },
-      { text: '포토샵 아트워크 & 브랜딩 굿즈 제작 프로젝트', highlight: false },
-      { text: '멜론 광고 영상 제작 프로젝트 [공유하는 마음]', highlight: false },
-      { text: '맛집 지도 서비스 제작 프로젝트 [MZ]', highlight: true },
-      { text: '그래픽 포스터 제작 프로젝트 [모디곰 BI 포스터]', highlight: true },
-      { text: '학교 아이덴티티 반영 패턴디자인 제작 프로젝트', highlight: false },
-      { text: '흥부전 픽토그램 디자인 프로젝트', highlight: false },
-      { text: 'GUI 스타일별 아이콘 제작 프로젝트', highlight: true },
-      { text: 'OTT 서비스 디자인 시스템 컴포넌트 및 디자인 시스템 제작 프로젝트', highlight: true },
-      { text: '패션 종합 어플리케이션 [MFF] 창업 계획서 작성 프로젝트', highlight: false },
-    ]
-  },
-  club: {
-    title: '교내 활동 · 동아리 활동',
-    path:  '~/archive/club/',
-    items: [
-      { text: '급식 티켓팅 서비스 제작 프로젝트 [급식 패스]', highlight: true },
-      { text: '미림 해커톤 / 컬러워크 기록 서비스 제작 프로젝트 [투데인트]', highlight: true },
-      { text: 'AI ESG 교육 이수', highlight: false },
-      { text: 'JS 스터디 홍보 게시물 제작', highlight: true },
-    ]
-  },
-  personal: {
-    title: '개인 프로젝트 경험',
-    path:  '~/archive/personal/',
-    items: [
-      { text: '컵에 끼우는 화상 방지용 실리콘 차단물로 창업 아이디어 경진 대회 참여', highlight: false },
-      { text: '(진행중) 하루 한번 면접 질문 서비스 제작 프로젝트 [모디곰]', highlight: true },
-    ]
-  },
-  books: {
-    title: '독서 경험',
-    path:  '~/archive/books/',
-    items: [
-      { text: '< 라면집도 디자이너가 하면 다르다 > — 강범규', highlight: true },
-      { text: '< 디자인 구구단 > — 에이핫', highlight: false },
-      { text: '< (UX/UI 디자이너를 위한) 실무 피그마 > — 클레어정', highlight: true },
-      { text: '< (비전공자를 위한 이해할 수 있는) IT 지식 > — 최원영', highlight: false },
-      { text: '< 1일 1로그 100일 완성 IT 지식 > — 브라이언 W. 커니핸', highlight: false },
-      { text: '< 폰트의 비밀 > — 고바야시 아키라', highlight: true },
-      { text: '< 갱부 > — 나쓰메 소세키', highlight: false },
-    ]
-  },
-  cert: {
-    title: '자격취득내용',
-    path:  '~/archive/cert/',
-    items: [
-      { text: 'GTQ 1급', highlight: false },
-      { text: 'ITQ 한글 A급, PPT C급', highlight: false },
-    ]
-  },
-  awards: {
-    title: '수상 이력',
-    path:  '~/archive/awards/',
-    items: [
-      { text: '신입생 대표 선서, 학교장 장학금', highlight: true },
-      { text: '1학년 1학기 일본어 교과우수상 수상', highlight: false },
-      { text: '피그마 재즈 대상 수상', highlight: true },
-      { text: 'AI ESG 교육 이수 수료증', highlight: false },
-    ]
-  }
-};
-
-const setupFolderGUI = () => {
-  const grid       = document.getElementById('desktop-grid');
-  const modal      = document.getElementById('folder-modal');
-  const modalClose = document.getElementById('modal-close');
-  const modalBack  = document.getElementById('modal-backdrop');
-  const modalTitle = document.getElementById('modal-title');
-  const modalPath  = document.getElementById('modal-path');
-  const modalBody  = document.getElementById('modal-body');
-
-  if (!grid || !modal) return;
-
-  let selectedItem = null;
-
-  const openModal = (folderKey) => {
-    const data = FOLDER_DATA[folderKey];
-    if (!data) return;
-
-    modalTitle.textContent = data.title;
-    modalPath.textContent  = data.path;
-
-    const sectionLabel = document.createElement('p');
-    sectionLabel.className   = 'modal-section-title';
-    sectionLabel.textContent = 'FILES';
-
-    const list = document.createElement('ul');
-    list.className = 'modal-file-list';
-
-    data.items.forEach(item => {
-      const li    = document.createElement('li');
-      li.className = 'modal-file-item' + (item.highlight ? ' is-highlight' : '');
-
-      const icon  = document.createElement('span');
-      icon.className   = 'file-icon';
-      icon.textContent = item.highlight ? '★' : '›';
-
-      const text  = document.createElement('span');
-      text.textContent = item.text;
-
-      li.appendChild(icon);
-      li.appendChild(text);
-      list.appendChild(li);
-    });
-
-    modalBody.innerHTML = '';
-    modalBody.appendChild(sectionLabel);
-    modalBody.appendChild(list);
-
-    modal.classList.add('is-open');
-    document.body.style.overflow = 'hidden';
-  };
-
-  const closeModal = () => {
-    modal.classList.remove('is-open');
-    document.body.style.overflow = '';
-  };
-
-  grid.addEventListener('click', (e) => {
-    const item = e.target.closest('.folder-item');
-    if (!item) {
-      if (selectedItem) {
-        selectedItem.classList.remove('is-selected');
-        selectedItem = null;
-      }
-      return;
-    }
-
-    if (selectedItem && selectedItem !== item) {
-      selectedItem.classList.remove('is-selected');
-    }
-    
-    item.classList.add('is-selected');
-    selectedItem = item;
-  });
-
-  grid.addEventListener('dblclick', (e) => {
-    const item = e.target.closest('.folder-item');
-    if (!item) return;
-    
-    item.classList.add('is-opening');
-    setTimeout(() => item.classList.remove('is-opening'), 200);
-    openModal(item.dataset.folder);
-  });
-
-  if (modalClose) modalClose.addEventListener('click', closeModal);
-  if (modalBack) modalBack.addEventListener('click',  closeModal);
-};
-
-/* ════════════════════════════════════════
-    SCROLL REVEAL CARD
-════════════════════════════════════════ */
-const setupReveal = () => {
-  const cards = document.querySelectorAll('.reveal-card');
-  if (!cards.length) return;
-  const obs = new IntersectionObserver(
-    (entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('is-visible');
-          obs.unobserve(entry.target);
-        }
-      });
-    },
-    { threshold: 0.1, rootMargin: '0px 0px -8% 0px' }
-  );
-  cards.forEach(c => obs.observe(c));
-};
-
-/* ════════════════════════════════════════
-    CORE INIT ENTRY
-════════════════════════════════════════ */
-const initAll = () => {
-  landingCanvasCtrl = setupLandingCanvas();
-  setupHoverEvents();
-  eliminateFakeModels();
-  buildSectionMap();
-  setupReveal();
-  setupFolderGUI();
-
-  initThree();
-  animate();
-
-  window.addEventListener('scroll', () => {
-    updateNavProgress();
-    const spotlight = document.querySelector('.page-spotlight');
-    if (spotlight) {
-      const px = (pointer.x / window.innerWidth)  * 100;
-      const py = (pointer.y / window.innerHeight) * 100;
-      spotlight.style.setProperty('--page-pointer-x', `${px}%`);
-      spotlight.style.setProperty('--page-pointer-y', `${py}%`);
-    }
-  }, { passive: true });
-
-  updateNavProgress();
-};
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initAll);
-} else {
-  initAll();
 }
 
-window.addEventListener('resize', () => {
-  if (landingCanvasCtrl && typeof landingCanvasCtrl.resize === 'function') {
-    landingCanvasCtrl.resize();
-  }
-  resizeThree();
-  updateNavProgress();
-});
+window.addEventListener('resize', handleResize);
+
+// 완전히 레이아웃이 잡힌 후 안전하게 초기화 실행
+window.onload = () => {
+    initThree();
+    animate();
+};
