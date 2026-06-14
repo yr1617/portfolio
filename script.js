@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
-// 기존에 남아있던 유령 루프가 있다면 깨끗하게 리셋
+// 1. 애니메이션 프레임 전역 관리 및 중복 루프 제거
 if (window.animFrameId) {
     cancelAnimationFrame(window.animFrameId);
     window.animFrameId = null;
@@ -16,7 +16,7 @@ const rotState = { x: 0, y: 0 };
 const displayShell = document.querySelector('.landing-display-shell') || document.querySelector('#landing-display');
 
 /* ════════════════════════════════════════
-    ✨ 크롬 반사 질감을 극대화하는 환경 맵 시스템
+    ✨ 메탈 텍스처를 살려주는 초간결 조명/환경 시스템
 ════════════════════════════════════════ */
 const setupEnvironment = (targetScene) => {
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
@@ -57,7 +57,7 @@ const setupEnvironmentMap = (targetScene, targetRenderer) => {
 };
 
 /* ════════════════════════════════════════
-    📦 THREE.JS 인라인 격리 초기화
+    📦 THREE.JS 코어 초기화 (인라인 레이아웃 보호형)
 ════════════════════════════════════════ */
 const initThree = () => {
     if (!displayShell) return;
@@ -67,8 +67,6 @@ const initThree = () => {
 
     const newCanvas = document.createElement('canvas');
     newCanvas.id = 'model-canvas';
-    
-    // 주변 레이아웃 배치를 절대 방해하지 않도록 완전 격리 고정
     newCanvas.style.position = 'absolute';
     newCanvas.style.top = '0';
     newCanvas.style.left = '0';
@@ -138,34 +136,13 @@ const initThree = () => {
             modelAnchor.add(model);
             scene.add(modelAnchor);
 
-            // 모델 로딩이 완료되면 즉시 가림막 파괴 프로스세 가동
-            killLoaderScreen();
+            // 로딩 완료 후 로더 화면 정상 정리
+            const siteLoader = document.querySelector('#site-loader');
+            if (siteLoader) siteLoader.classList.add('is-loaded');
         },
         undefined,
-        (err) => { 
-            console.warn('모델 로딩 실패:', err);
-            killLoaderScreen(); // 실패하더라도 본문은 무조건 띄우도록 예외 처리
-        }
+        (err) => { console.warn('모델 로딩 실패:', err); }
     );
-};
-
-/* ════════════════════════════════════════
-    💥 [핵심 수리] 무한 가림막 레이어 원천 제거 함수
-════════════════════════════════════════ */
-const killLoaderScreen = () => {
-    const siteLoader = document.querySelector('#site-loader');
-    if (siteLoader) {
-        // 투명하게 가리고 있는 유리창 레이어를 물리적으로 완벽히 파괴하거나 숨깁니다.
-        siteLoader.classList.add('is-loaded');
-        siteLoader.style.opacity = '0';
-        siteLoader.style.pointerEvents = 'none';
-        siteLoader.style.visibility = 'hidden';
-        
-        // 0.4초 뒤 공간 차지까지 완벽하게 소멸
-        setTimeout(() => {
-            siteLoader.style.display = 'none';
-        }, 400);
-    }
 };
 
 /* ════════════════════════════════════════
@@ -221,10 +198,21 @@ if (displayShell) {
 
 window.addEventListener('resize', handleResize);
 
+/* ════════════════════════════════════════
+    🚀 페이지 로드 즉시 실행 및 에러 원천 차단
+════════════════════════════════════════ */
 window.onload = () => {
-    initThree();
-    animate();
-    
-    // 혹시나 모델이 늦게 뜨더라도 1초 뒤엔 무조건 글자들이 튀어나오도록 안전장치 설정
-    setTimeout(killLoaderScreen, 1000);
+    // 3D 공간을 먼저 에러 없이 안전하게 실행합니다.
+    try {
+        initThree();
+        animate();
+    } catch (e) {
+        console.error("Three.js 실행 중 오류 발생:", e);
+    }
+
+    // ──────────────────────────────────────────────────────────
+    // 🌟 [중요] 여기에 기존에 작성하셨던 본문 텍스트 주입, 
+    // 주요 프로젝트 바인딩, 이력 폴더 클릭 이벤트(`.addEventListener`), 
+    // Contact 노출 관련 오리지널 자바스크립트 코드를 이 아래에 이어서 붙여넣어 주세요!
+    // ──────────────────────────────────────────────────────────
 };
