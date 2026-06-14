@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { RGBELoader } from 'three/addons/loaders/RGBELoader.js'; // 🌟 누락되었던 로더 임포트 추가로 스크립트 먹통 해결!
 
 /* ════════════════════════════════════════
     ENGINE RE-INIT PROTECTION & CLEANUP
@@ -32,50 +33,47 @@ const pointer = {
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
 /* ════════════════════════════════════════
-    ✨ 하이퍼 크롬을 위한 가상 스튜디오 환경 맵 생성 (대비 극대화 버전)
+    ✨ 하이퍼 크롬을 위한 가상 스튜디오 환경 맵 생성 (고대비 버전)
 ════════════════════════════════════════ */
 const setupEnvironmentMap = (targetScene, targetRenderer) => {
     const envScene = new THREE.Scene();
     
-    // 🌟 [수정 사항] 단순 흰색 배경광(AmbientLight)을 삭제하여 안 비치는 곳을 어둡게 만듭니다.
-    // const baseLight = new THREE.AmbientLight(0xffffff, 1.0);
-    // envScene.add(baseLight);
-
-    // 🌟 [수정 사항] 반사판들의 색상을 순백색(0xffffff)으로 올려 하이라이트를 더 쨍하게 만듭니다.
+    // 🌟 주변 전체를 허옇게 태우던 AmbientLight를 완전히 제거하여 안 비치는 곳은 어둡게 만듭니다.
+    // 대신 강렬한 화이트 반사판들을 배치하여 거울처럼 비치는 영역만 극도로 밝게 표현합니다.
 
     // 1. 전면 하이라이트를 만들어줄 강력한 대형 반사판
     const plate1 = new THREE.Mesh(
-        new THREE.PlaneGeometry(50, 50),
-        new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide }) // 색상 쨍하게 조정
+        new THREE.PlaneGeometry(60, 60),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
     );
-    plate1.position.set(0, 10, 30);
+    plate1.position.set(0, 15, 35);
     plate1.lookAt(0, 0, 0);
     envScene.add(plate1);
 
-    // 2. 좌측 측면 메탈 라인을 살려줄 백색 반사판
+    // 2. 좌측 측면 메탈 라인을 날카롭게 살려줄 백색 반사판
     const plate2 = new THREE.Mesh(
-        new THREE.PlaneGeometry(30, 60),
-        new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide }) // 색상 쨍하게 조정
+        new THREE.PlaneGeometry(25, 70),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
     );
-    plate2.position.set(-25, 15, 10);
+    plate2.position.set(-30, 20, 10);
     plate2.lookAt(0, 0, 0);
     envScene.add(plate2);
 
-    // 3. 우측 모서리에 날카로운 광택을 더해줄 고대비 흑백 반사판
+    // 3. 우측 모서리에 강렬한 하이라이트를 더해줄 반사판
     const plate3 = new THREE.Mesh(
         new THREE.PlaneGeometry(20, 50),
-        new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide }) // 색상 쨍하게 조정
+        new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
     );
-    plate3.position.set(25, -5, 15);
+    plate3.position.set(30, -5, 20);
     plate3.lookAt(0, 0, 0);
     envScene.add(plate3);
 
     // 4. 상단 천장 조명판
     const plate4 = new THREE.Mesh(
-        new THREE.PlaneGeometry(60, 60),
-        new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide }) // 색상 쨍하게 조정
+        new THREE.PlaneGeometry(70, 70),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
     );
-    plate4.position.set(0, 35, 0);
+    plate4.position.set(0, 40, 0);
     plate4.rotation.x = Math.PI / 2;
     envScene.add(plate4);
 
@@ -84,9 +82,6 @@ const setupEnvironmentMap = (targetScene, targetRenderer) => {
     const envMapTexture = pmremGenerator.fromScene(envScene).texture;
     
     targetScene.environment = envMapTexture;
-    if (targetScene.environment) {
-        targetScene.environment.needsUpdate = true;
-    }
     
     envScene.traverse((child) => {
         if (child.isMesh) {
@@ -95,47 +90,47 @@ const setupEnvironmentMap = (targetScene, targetRenderer) => {
         }
     });
     pmremGenerator.dispose();
+    
+    return envMapTexture;
 };
 
+// 기본 월드 조명도 과하게 밝지 않도록 최소화 세팅
 const setupEnvironment = (targetScene) => {
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
+    // 모델 전체를 밝혀버리던 무지성 엠비언트를 깎아 어두운 면의 묵직함을 살립니다.
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.2); 
     targetScene.add(ambientLight);
 
-    const keyLight = new THREE.DirectionalLight(0xffffff, 4.0);
-    keyLight.position.set(5, 8, 10);
+    // 하이라이트 경계선용 직사광선들
+    const keyLight = new THREE.DirectionalLight(0xffffff, 2.5);
+    keyLight.position.set(5, 10, 8);
     targetScene.add(keyLight);
 
-    const fillLight = new THREE.DirectionalLight(0xffffff, 2.0);
+    const fillLight = new THREE.DirectionalLight(0xffffff, 1.0);
     fillLight.position.set(-8, 5, 5);
     targetScene.add(fillLight);
-
-    const topLight = new THREE.DirectionalLight(0xffffff, 2.5);
-    topLight.position.set(0, 15, 2);
-    targetScene.add(topLight);
 };
 
 /* ════════════════════════════════════════
     📦 THREE.JS 코어 빌드 및 레이아웃 최적화
 ════════════════════════════════════════ */
 const initThree = () => {
-    if (!displayShell) return;
+    const canvasTarget = document.querySelector('#landing-display');
+    if (!canvasTarget) return;
 
-    const oldCanvas = document.querySelector('#model-canvas');
-    if (oldCanvas) oldCanvas.remove();
+    let canvas = document.querySelector('#model-canvas');
+    if (!canvas) {
+        canvas = document.createElement('canvas');
+        canvas.id = 'model-canvas';
+        canvasTarget.appendChild(canvas);
+    }
 
-    const newCanvas = document.createElement('canvas');
-    newCanvas.id = 'model-canvas';
-    newCanvas.style.width = '100%';
-    newCanvas.style.height = '100%';
-    displayShell.appendChild(newCanvas);
-
-    const width = displayShell.clientWidth || 650;
-    const height = displayShell.clientHeight || 650;
+    const width  = canvasTarget.clientWidth  || 600;
+    const height = canvasTarget.clientHeight || 600;
 
     scene = new THREE.Scene();
 
     renderer = new THREE.WebGLRenderer({
-        canvas: newCanvas,
+        canvas,
         alpha: true,
         antialias: true,
         powerPreference: 'high-performance'
@@ -143,81 +138,93 @@ const initThree = () => {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(width, height);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.6; // 대비와 하이라이트 선명도 증폭
+    renderer.toneMapping      = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.3; // 전체 톤이 타버리지 않게 조절하면서 고대비 유지
 
     camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 100);
     camera.position.set(0, 0, 5.8);
 
-    setupEnvironmentMap(scene, renderer);
-    setupEnvironment(scene);
+    // 메탈의 어둠과 밝음 굴곡을 다이내믹하게 띄워줄 환경맵 적용 파트
+    const applyModelMaterial = (envMap) => {
+        setupEnvironment(scene);
 
-    const dirLight1 = new THREE.DirectionalLight(0xffffff, 3.0);
-    dirLight1.position.set(5, 15, 10);
-    scene.add(dirLight1);
+        const loader = new GLTFLoader();
+        const draco  = new DRACOLoader();
+        draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+        loader.setDRACOLoader(draco);
 
-    const dirLight2 = new THREE.DirectionalLight(0xffffff, 1.5);
-    dirLight2.position.set(-10, 5, 5);
-    scene.add(dirLight2);
+        loader.load(
+            './modeling.glb',
+            (gltf) => {
+                if (!gltf || !gltf.scene) return;
+                const model = gltf.scene;
 
-    const loader = new GLTFLoader();
-    const draco = new DRACOLoader();
-    draco.setDecoderPath('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/libs/draco/');
-    loader.setDRACOLoader(draco);
+                // 🌟 거울처럼 쨍하게 반사하되 안 비치는 곳은 칠흑처럼 깎이게 거칠기(roughness)를 바짝 내립니다.
+                const chromeMaterial = new THREE.MeshStandardMaterial({
+                    color:       0xdddddd,     // 완전 흰색보단 메탈릭 실버톤 베이스
+                    metalness:   1.0,          // 순도 100% 리얼 금속성
+                    roughness:   0.01,         // 극도로 미끄러운 표면광 (거울 수준)
+                    envMap:      envMap,
+                    envMapIntensity: 7.0,      // 반사되어 맺히는 하이라이트는 눈부시게 강조
+                    side:        THREE.FrontSide
+                });
 
-    loader.load(
-        './modeling.glb',
-        (gltf) => {
-            if (!gltf || !gltf.scene) return;
-            const model = gltf.scene;
+                model.traverse((child) => {
+                    if (child.isMesh) {
+                        child.material      = chromeMaterial;
+                        child.castShadow    = false;
+                        child.receiveShadow = false;
+                    }
+                });
 
-            // 거울처럼 주변 광택을 완벽 반사시키는 하이퍼 실버 크롬 재질 세팅 (needsUpdate 명시)
-            const chromeMaterial = new THREE.MeshStandardMaterial({
-                color: 0xffffff,
-                metalness: 1.0,
-                roughness: 0.03,
-                envMap: scene.environment,
-                envMapIntensity: 6.0,      // 반사 하이라이트 감도 가속
-                side: THREE.DoubleSide
-            });
+                // 모델 규격 계산 및 정렬 보정
+                const box    = new THREE.Box3().setFromObject(model);
+                const centre = new THREE.Vector3();
+                box.getCenter(centre);
+                const size   = new THREE.Vector3();
+                box.getSize(size);
+                
+                const maxDim     = Math.max(size.x, size.y, size.z);
+                const targetBounds = 2.9;
+                const scale      = targetBounds / maxDim;
 
-            model.traverse((child) => {
-                if (child.isMesh) {
-                    child.material = chromeMaterial;
-                    child.material.needsUpdate = true; // 재질 업데이트 강제
-                    child.castShadow = false;
-                    child.receiveShadow = false;
-                }
-            });
+                model.scale.setScalar(scale);
+                model.position.set(-centre.x * scale, -centre.y * scale, -centre.z * scale);
+                model.rotation.set(Math.PI * 0.38, Math.PI * 0.05, Math.PI * 0.12);
 
-            const box = new THREE.Box3().setFromObject(model);
-            const center = new THREE.Vector3();
-            box.getCenter(center);
-            const size = new THREE.Vector3();
-            box.getSize(size);
+                modelAnchor = new THREE.Group();
+                modelAnchor.add(model);
+                modelAnchor.position.set(0, 0.35, 0);
+                scene.add(modelAnchor);
 
-            const maxDim = Math.max(size.x, size.y, size.z);
-            
-            // 이전 수정 사항 유지: 모델 크기 상향(2.9) 및 위치 상향 오프셋
-            const targetBounds = 2.9; 
-            const scale = targetBounds / maxDim;
+                const siteLoader = document.querySelector('#site-loader');
+                if (siteLoader) siteLoader.classList.add('is-loaded');
+            },
+            undefined,
+            (err) => { console.warn('모델 로딩 실패:', err); }
+        );
+    };
 
-            model.scale.setScalar(scale);
-            model.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
-            model.rotation.set(Math.PI * 0.38, Math.PI * 0.05, Math.PI * 0.12);
+    // studio.hdr 비동기 로딩 및 Fallback 연동
+    const rgbeLoader = new RGBELoader();
+    rgbeLoader.load(
+        './studio.hdr',
+        (hdrTexture) => {
+            const pmrem = new THREE.PMREMGenerator(renderer);
+            pmrem.compileEquirectangularShader();
+            const envMap = pmrem.fromEquirectangular(hdrTexture).texture;
+            hdrTexture.dispose();
+            pmrem.dispose();
 
-            modelAnchor = new THREE.Group();
-            modelAnchor.add(model);
-            
-            // 이전 수정 사항 유지: 기본 앵커 Y 좌표 상향
-            modelAnchor.position.set(0, 0.35, 0); 
-            scene.add(modelAnchor);
-
-            const siteLoader = document.querySelector('#site-loader');
-            if (siteLoader) siteLoader.classList.add('is-loaded');
+            scene.environment = envMap;
+            applyModelMaterial(envMap);
         },
         undefined,
-        (err) => { console.warn('모델 로딩 실패:', err); }
+        () => {
+            // 외부 파일 누락 시 가상 고대비 환경 스튜디오를 자체 작동시켜 백업
+            const generatedEnvMap = setupEnvironmentMap(scene, renderer);
+            applyModelMaterial(generatedEnvMap);
+        }
     );
 };
 
@@ -239,7 +246,7 @@ const animate = () => {
 
     if (renderer && scene && camera) {
         if (modelAnchor) {
-            // 이전 수정 사항 유지: 마우스 호버 인터랙션 엔진
+            // 🌟 [호버 마우스 인터랙션] 마우스를 올리고 이리저리 움직이면 방향을 기민하게 추격하여 회전
             if (isHoveringModel) {
                 const targetX = -mouseY * 0.45;
                 const targetY = mouseX * 0.55;
@@ -247,12 +254,12 @@ const animate = () => {
                 rotState.y += (targetY - rotState.y) * 0.08;
             } else {
                 rotState.x += (0 - rotState.x) * 0.05;
-                rotState.y += 0.004; // 기본 자동 부드러운 전방향 회전
+                rotState.y += 0.004; // 기본 대기 상태 회전
             }
             modelAnchor.rotation.x = rotState.x;
             modelAnchor.rotation.y = rotState.y;
             
-            // 이전 수정 사항 유지: 상하 안정적 유영
+            // 공중 유영 애니메이션
             modelAnchor.position.y = 0.35 + Math.sin(clock * 0.8) * 0.05; 
         }
         renderer.render(scene, camera);
@@ -435,7 +442,7 @@ const setupFolderGUI = () => {
             icon.className = 'file-icon';
             icon.textContent = item.highlight ? '★' : '›';
             
-            // 이전 수정 사항 유지: 폴더 아이콘 원 내부 중앙 정렬
+            // 폴더 아이콘 원 내부 요소 완벽 중앙 고정 정렬 유지
             icon.style.display = 'inline-flex';
             icon.style.alignItems = 'center';
             icon.style.justifyContent = 'center';
