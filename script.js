@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
+// 기존에 남아있던 유령 루프가 있다면 깨끗하게 리셋
 if (window.animFrameId) {
     cancelAnimationFrame(window.animFrameId);
     window.animFrameId = null;
@@ -15,7 +16,7 @@ const rotState = { x: 0, y: 0 };
 const displayShell = document.querySelector('.landing-display-shell') || document.querySelector('#landing-display');
 
 /* ════════════════════════════════════════
-    ✨ 하이퍼 크롬을 위한 가상 스튜디오 환경 맵
+    ✨ 크롬 반사 질감을 극대화하는 환경 맵 시스템
 ════════════════════════════════════════ */
 const setupEnvironment = (targetScene) => {
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
@@ -56,27 +57,25 @@ const setupEnvironmentMap = (targetScene, targetRenderer) => {
 };
 
 /* ════════════════════════════════════════
-    📦 THREE.JS 코어 초기화 (레이아웃 보호형 고정)
+    📦 THREE.JS 인라인 격리 초기화
 ════════════════════════════════════════ */
 const initThree = () => {
     if (!displayShell) return;
 
-    // 기존에 존재하던 캔버스 완벽 파괴
     const oldCanvas = document.querySelector('#model-canvas');
     if (oldCanvas) oldCanvas.remove();
 
     const newCanvas = document.createElement('canvas');
     newCanvas.id = 'model-canvas';
     
-    // 🌟 [핵심 수리] 캔버스가 주변 HTML/CSS 글자 레이아웃을 밀어내거나 덮지 못하도록 절대 위치로 박아버립니다.
+    // 주변 레이아웃 배치를 절대 방해하지 않도록 완전 격리 고정
     newCanvas.style.position = 'absolute';
     newCanvas.style.top = '0';
     newCanvas.style.left = '0';
     newCanvas.style.width = '100%';
     newCanvas.style.height = '100%';
-    newCanvas.style.pointerEvents = 'auto'; // 마우스 이벤트는 정상 작동하도록 설정
+    newCanvas.style.pointerEvents = 'auto'; 
     
-    // 부모 셸 영역에 absolute 기준점이 잡히도록 보정
     displayShell.style.position = 'relative';
     displayShell.appendChild(newCanvas);
 
@@ -139,12 +138,34 @@ const initThree = () => {
             modelAnchor.add(model);
             scene.add(modelAnchor);
 
-            const siteLoader = document.querySelector('#site-loader');
-            if (siteLoader) siteLoader.classList.add('is-loaded');
+            // 모델 로딩이 완료되면 즉시 가림막 파괴 프로스세 가동
+            killLoaderScreen();
         },
         undefined,
-        (err) => { console.warn('모델 로딩 실패:', err); }
+        (err) => { 
+            console.warn('모델 로딩 실패:', err);
+            killLoaderScreen(); // 실패하더라도 본문은 무조건 띄우도록 예외 처리
+        }
     );
+};
+
+/* ════════════════════════════════════════
+    💥 [핵심 수리] 무한 가림막 레이어 원천 제거 함수
+════════════════════════════════════════ */
+const killLoaderScreen = () => {
+    const siteLoader = document.querySelector('#site-loader');
+    if (siteLoader) {
+        // 투명하게 가리고 있는 유리창 레이어를 물리적으로 완벽히 파괴하거나 숨깁니다.
+        siteLoader.classList.add('is-loaded');
+        siteLoader.style.opacity = '0';
+        siteLoader.style.pointerEvents = 'none';
+        siteLoader.style.visibility = 'hidden';
+        
+        // 0.4초 뒤 공간 차지까지 완벽하게 소멸
+        setTimeout(() => {
+            siteLoader.style.display = 'none';
+        }, 400);
+    }
 };
 
 /* ════════════════════════════════════════
@@ -203,4 +224,7 @@ window.addEventListener('resize', handleResize);
 window.onload = () => {
     initThree();
     animate();
+    
+    // 혹시나 모델이 늦게 뜨더라도 1초 뒤엔 무조건 글자들이 튀어나오도록 안전장치 설정
+    setTimeout(killLoaderScreen, 1000);
 };
