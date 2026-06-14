@@ -140,7 +140,7 @@ const initThree = () => {
     renderer.toneMappingExposure = 1.5; // 메탈이 더 밝고 쨍하게 빛나도록 노출 가속
 
     // 4. 왜곡 방지 카메라 스케일 고정
-    // 📐 [잘림 방지 설계 1] 카메라 거리를 5.2에서 5.8로 뒤로 한 걸음 물려 시야각 확보
+    // 📐 [잘림 방지 설계 1] 카메라 거리를 5.8로 뒤로 한 걸음 물려 시야각 확보
     camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 100);
     camera.position.set(0, 0, 5.8);
 
@@ -196,7 +196,7 @@ const initThree = () => {
             box.getSize(size);
 
             const maxDim = Math.max(size.x, size.y, size.z);
-            // 📐 [잘림 방지 설계 2] 모델 크기 타겟 비율을 3.3에서 2.6으로 줄여 화면 내부 안전존에 안착
+            // 📐 [잘림 방지 설계 2] 모델 크기 타겟 비율을 2.6으로 줄여 화면 내부 안전존에 안착
             const targetBounds = 2.6; 
             const scale = targetBounds / maxDim;
 
@@ -221,7 +221,7 @@ const initThree = () => {
 };
 
 /* ════════════════════════════════════════
-    🔄 루프 애니메이션 및 인터랙션
+    🔄 루프 애니메이션 및 인터랙션 (원래 작성하신 호버 모션 수식)
 ════════════════════════════════════════ */
 const animate = () => {
     window.animFrameId = requestAnimationFrame(animate);
@@ -230,7 +230,7 @@ const animate = () => {
     if (renderer && scene && camera) {
         if (modelAnchor) {
             if (isHoveringModel) {
-                // 마우스 트래킹 반응
+                // 원래 작성해 두셨던 마우스 트래킹 반응 로직 복구
                 const targetX = -mouseY * 0.35;
                 const targetY = mouseX * 0.45;
                 rotState.x += (targetX - rotState.x) * 0.08;
@@ -280,12 +280,12 @@ if (displayShell) {
 
 window.addEventListener('resize', handleResize);
 
-// 🔥 핵심 변경점: HTML 레이아웃과 CSS가 완전히 로드되어 배치된 후 비로소 단 '한 번만' 렌더링 엔진을 가동합니다.
+// 🔥 HTML 레이아웃과 CSS가 완전히 로드되어 배치된 후 비로소 단 '한 번만' 렌더링 엔진을 가동합니다.
 window.onload = () => {
     initThree();
     animate();
 
-    // 화면을 가로막고 무한 대기하던 로딩창(#site-loader)이 있다면 강제로 치워 다른 레이아웃을 노출합니다.
+    // 화면을 가로막던 로딩창을 부드럽게 제거하여 아래 숨겨진 프로필/메인 프로젝트 내용들을 전면 오픈합니다.
     const siteLoader = document.querySelector('#site-loader');
     if (siteLoader) {
         siteLoader.style.opacity = '0';
