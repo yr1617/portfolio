@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
-import { RGBELoader } from 'three/addons/loaders/RGBELoader.js'; // 🌟 누락되었던 로더 임포트 추가로 스크립트 먹통 해결!
+import { RGBELoader } from 'three/addons/loaders/RGBELoader.js'; 
 
 /* ════════════════════════════════════════
     ENGINE RE-INIT PROTECTION & CLEANUP
@@ -33,14 +33,12 @@ const pointer = {
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
 /* ════════════════════════════════════════
-    ✨ 하이퍼 크롬을 위한 가상 스튜디오 환경 맵 생성 (고대비 버전)
+    ✨ 하이퍼 크롬을 위한 가상 스튜디오 환경 맵 생성 (백업용 고대비 버전)
 ════════════════════════════════════════ */
 const setupEnvironmentMap = (targetScene, targetRenderer) => {
     const envScene = new THREE.Scene();
     
-    // 🌟 주변 전체를 허옇게 태우던 AmbientLight를 완전히 제거하여 안 비치는 곳은 어둡게 만듭니다.
-    // 대신 강렬한 화이트 반사판들을 배치하여 거울처럼 비치는 영역만 극도로 밝게 표현합니다.
-
+    // 환경맵 내부 조명을 모두 끄고, 반사판의 쨍함만 남깁니다.
     // 1. 전면 하이라이트를 만들어줄 강력한 대형 반사판
     const plate1 = new THREE.Mesh(
         new THREE.PlaneGeometry(60, 60),
@@ -94,18 +92,16 @@ const setupEnvironmentMap = (targetScene, targetRenderer) => {
     return envMapTexture;
 };
 
-// 기본 월드 조명도 과하게 밝지 않도록 최소화 세팅
+// 🌟 일반 조명이 너무 강하면 크롬이 허얗게 타버립니다. 전체적으로 조명 강도를 낮춥니다.
 const setupEnvironment = (targetScene) => {
-    // 모델 전체를 밝혀버리던 무지성 엠비언트를 깎아 어두운 면의 묵직함을 살립니다.
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.2); 
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.05); // 0.2 -> 0.05로 하향 (어두운 면 확보)
     targetScene.add(ambientLight);
 
-    // 하이라이트 경계선용 직사광선들
-    const keyLight = new THREE.DirectionalLight(0xffffff, 2.5);
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.2);   // 2.5 -> 1.2로 하향
     keyLight.position.set(5, 10, 8);
     targetScene.add(keyLight);
 
-    const fillLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);   // 1.0 -> 0.4로 하향
     fillLight.position.set(-8, 5, 5);
     targetScene.add(fillLight);
 };
@@ -139,12 +135,13 @@ const initThree = () => {
     renderer.setSize(width, height);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping      = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.3; // 전체 톤이 타버리지 않게 조절하면서 고대비 유지
+    
+    // 🌟 [수정 핵심] 노출(Exposure)을 낮춰서 허옇게 뜬 면을 지우고 고대비 명암을 형성합니다.
+    renderer.toneMappingExposure = 0.75; 
 
     camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 100);
     camera.position.set(0, 0, 5.8);
 
-    // 메탈의 어둠과 밝음 굴곡을 다이내믹하게 띄워줄 환경맵 적용 파트
     const applyModelMaterial = (envMap) => {
         setupEnvironment(scene);
 
@@ -159,14 +156,17 @@ const initThree = () => {
                 if (!gltf || !gltf.scene) return;
                 const model = gltf.scene;
 
-                // 🌟 거울처럼 쨍하게 반사하되 안 비치는 곳은 칠흑처럼 깎이게 거칠기(roughness)를 바짝 내립니다.
-                const chromeMaterial = new THREE.MeshStandardMaterial({
-                    color:       0xdddddd,     // 완전 흰색보단 메탈릭 실버톤 베이스
-                    metalness:   1.0,          // 순도 100% 리얼 금속성
-                    roughness:   0.01,         // 극도로 미끄러운 표면광 (거울 수준)
-                    envMap:      envMap,
-                    envMapIntensity: 7.0,      // 반사되어 맺히는 하이라이트는 눈부시게 강조
-                    side:        THREE.FrontSide
+                // 🌟 [수정 핵심] MeshStandardMaterial에서 하이엔드 MeshPhysicalMaterial로 업그레이드.
+                // 거칠기를 0으로 만들어 완벽한 거울 표면을 구현하고, 코팅(clearcoat)을 입혀 대비를 극대화합니다.
+                const chromeMaterial = new THREE.MeshPhysicalMaterial({
+                    color:              0xffffff,     // 순백 실버 크롬 base
+                    metalness:          1.0,          // 100% 리얼 금속 질감
+                    roughness:          0.0,          // 거칠기 0 (환경맵 무늬가 칼같이 맺힘)
+                    clearcoat:          1.0,          // 메탈 표면 위에 투명 광택 코팅 레이어 추가
+                    clearcoatRoughness: 0.0,          // 코팅 표면도 극도로 매끄럽게 처리
+                    envMap:             envMap,
+                    envMapIntensity:    4.5,          // 하이라이트가 과하게 타지 않도록 밸런스 조정
+                    side:               THREE.FrontSide
                 });
 
                 model.traverse((child) => {
@@ -246,7 +246,7 @@ const animate = () => {
 
     if (renderer && scene && camera) {
         if (modelAnchor) {
-            // 🌟 [호버 마우스 인터랙션] 마우스를 올리고 이리저리 움직이면 방향을 기민하게 추격하여 회전
+            // [호버 마우스 인터랙션 정상 유지]
             if (isHoveringModel) {
                 const targetX = -mouseY * 0.45;
                 const targetY = mouseX * 0.55;
