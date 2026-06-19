@@ -18,8 +18,6 @@ let isHoveringModel = false;
 let clock = 0;
 const rotState = { x: 0, y: 0 };
 
-// 🌟 우리가 원하는 고정 종횡비 (가로/세로 비율, 예: 1.0은 1:1 정방형)
-// 브라우저 CSS가 이 비율을 무시하고 늘려도, 이 비율대로 캔버스 내부를 그립니다.
 const TARGET_ASPECT = 1.0; 
 
 const displayShell = document.querySelector('.landing-display-shell') || document.querySelector('#landing-display');
@@ -27,7 +25,6 @@ const follower = document.querySelector('.cursor-follower');
 const navLinks = document.querySelectorAll('.topnav a[data-target]');
 const sections = [];
 
-// 마우스 및 포인터 보간(Lerp) 트래킹 시스템용 상태 변수
 const pointer = {
     x: window.innerWidth * 0.5,
     y: window.innerHeight * 0.5,
@@ -37,12 +34,11 @@ const pointer = {
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
 /* ════════════════════════════════════════
-    ✨ 하이퍼 크롬을 위한 가상 스튜디오 환경 맵 생성 (백업용 고대비 버전)
+    ✨ 환경맵 (가상 스튜디오 백업용)
 ════════════════════════════════════════ */
 const setupEnvironmentMap = (targetScene, targetRenderer) => {
     const envScene = new THREE.Scene();
     
-    // 1. 전면 하이라이트를 만들어줄 강력한 대형 반사판
     const plate1 = new THREE.Mesh(
         new THREE.PlaneGeometry(60, 60),
         new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
@@ -51,7 +47,6 @@ const setupEnvironmentMap = (targetScene, targetRenderer) => {
     plate1.lookAt(0, 0, 0);
     envScene.add(plate1);
 
-    // 2. 좌측 측면 메탈 라인을 날카롭게 살려줄 백색 반사판
     const plate2 = new THREE.Mesh(
         new THREE.PlaneGeometry(25, 70),
         new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
@@ -60,7 +55,6 @@ const setupEnvironmentMap = (targetScene, targetRenderer) => {
     plate2.lookAt(0, 0, 0);
     envScene.add(plate2);
 
-    // 3. 우측 모서리에 강렬한 하이라이트를 더해줄 반사판
     const plate3 = new THREE.Mesh(
         new THREE.PlaneGeometry(20, 50),
         new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
@@ -69,7 +63,6 @@ const setupEnvironmentMap = (targetScene, targetRenderer) => {
     plate3.lookAt(0, 0, 0);
     envScene.add(plate3);
 
-    // 4. 상단 천장 조명판
     const plate4 = new THREE.Mesh(
         new THREE.PlaneGeometry(70, 70),
         new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
@@ -95,7 +88,6 @@ const setupEnvironmentMap = (targetScene, targetRenderer) => {
     return envMapTexture;
 };
 
-// 일반 조명 밸런스 설정
 const setupEnvironment = (targetScene) => {
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.05); 
     targetScene.add(ambientLight);
@@ -110,7 +102,7 @@ const setupEnvironment = (targetScene) => {
 };
 
 /* ════════════════════════════════════════
-    📦 THREE.JS 코어 빌드 및 레이아웃 최적화
+    📦 THREE.JS INIT
 ════════════════════════════════════════ */
 const initThree = () => {
     const canvasTarget = document.querySelector('#landing-display');
@@ -123,7 +115,6 @@ const initThree = () => {
         canvasTarget.appendChild(canvas);
     }
 
-    // 🌟 렌더러와 카메라는 clientWidth/Height가 아닌, 우리가 정한 고정 비율(TARGET_ASPECT)을 사용해 초기화합니다.
     const containerWidth = canvasTarget.clientWidth || 600;
     const initialHeight = containerWidth / TARGET_ASPECT;
 
@@ -136,17 +127,14 @@ const initThree = () => {
         powerPreference: 'high-performance'
     });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    // 🌟 초기 크기도 clientHeight 대신 TARGET_ASPECT 비율을 강제 적용합니다.
     renderer.setSize(containerWidth, initialHeight);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping      = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 0.75; 
 
-    // 🌟 카메라도 TARGET_ASPECT 비율을 사용해 초기화합니다.
     camera = new THREE.PerspectiveCamera(38, TARGET_ASPECT, 0.1, 100);
     camera.position.set(0, 0, 5.8);
 
-    // 기동 즉시 가로세로 동기화 엔진 1회 즉시 실행 (비율 교정)
     handleResize();
 
     const applyModelMaterial = (envMap) => {
@@ -182,7 +170,6 @@ const initThree = () => {
                     }
                 });
 
-                // 모델 규격 계산 및 정렬 보정
                 const box    = new THREE.Box3().setFromObject(model);
                 const centre = new THREE.Vector3();
                 box.getCenter(centre);
@@ -205,7 +192,6 @@ const initThree = () => {
                 const siteLoader = document.querySelector('#site-loader');
                 if (siteLoader) siteLoader.classList.add('is-loaded');
 
-                // 모델 안착 시점에 레이아웃 마이크로 튠업
                 setTimeout(handleResize, 60);
             },
             undefined,
@@ -213,7 +199,6 @@ const initThree = () => {
         );
     };
 
-    // studio.hdr 비동기 로딩 및 Fallback 연동
     const rgbeLoader = new RGBELoader();
     rgbeLoader.load(
         './studio.hdr',
@@ -234,7 +219,6 @@ const initThree = () => {
         }
     );
 
-    // ResizeObserver 엔진 구동 (애니메이션 타이밍 버그 방지를 위해 requestAnimationFrame 래핑)
     if (displayShell) {
         const resizeObserver = new ResizeObserver(() => {
             requestAnimationFrame(handleResize);
@@ -244,13 +228,12 @@ const initThree = () => {
 };
 
 /* ════════════════════════════════════════
-    🔄 루프 애니메이션 및 인터랙션 엔진
+    🔄 ANIMATION LOOP
 ════════════════════════════════════════ */
 const animate = () => {
     window.animFrameId = requestAnimationFrame(animate);
     clock += 0.01;
 
-    // 마우스 커서 부드러운 Lerp 보간 연산 엔진
     pointer.x += (pointer.tx - pointer.x) * 0.12;
     pointer.y += (pointer.ty - pointer.y) * 0.12;
 
@@ -279,28 +262,22 @@ const animate = () => {
     }
 };
 
-// 🌟 [핵심 수정] 자바스크립트로 세로 찌그러짐 원천 차단 핸들러
 const handleResize = () => {
     if (!renderer || !camera || !displayShell) return;
     
-    // 🌟 CSS가 레이아웃을 왜곡시키더라도, 브라우저가 제공하는 clientWidth만 믿습니다.
     const width = displayShell.clientWidth || displayShell.offsetWidth || 600;
-    
-    // 🌟 clientHeight를 무시하고, 자바스크립트 내에서 우리가 원하는 비율(TARGET_ASPECT)로 높이를 강제 재계산합니다.
     const forcedHeight = width / TARGET_ASPECT; 
     
     if (width === 0 || forcedHeight === 0) return; 
 
-    // 🌟 카메라는 TARGET_ASPECT 비율을 고수합니다.
     camera.aspect = TARGET_ASPECT; 
     camera.updateProjectionMatrix(); 
     
-    // 🌟 렌더러 세로 버퍼 크기도 우리가 강제 재계산한 forcedHeight로 설정합니다.
     renderer.setSize(width, forcedHeight); 
 };
 
 /* ════════════════════════════════════════
-    ✨ NAV PROGRESS SCROLL INDICATOR ENGINE
+    ✨ NAV PROGRESS
 ════════════════════════════════════════ */
 const buildSectionMap = () => {
     navLinks.forEach(link => {
@@ -362,7 +339,7 @@ const updateNavProgress = () => {
 };
 
 /* ════════════════════════════════════════
-    📂 FOLDER GUI ARCHIVE INTERACTION
+    📂 FOLDER GUI (기존 그대로)
 ════════════════════════════════════════ */
 const FOLDER_DATA = {
     academic: {
@@ -465,7 +442,6 @@ const setupFolderGUI = () => {
             const icon = document.createElement('span');
             icon.className = 'file-icon';
             icon.textContent = item.highlight ? '★' : '›';
-            
             icon.style.display = 'inline-flex';
             icon.style.alignItems = 'center';
             icon.style.justifyContent = 'center';
@@ -517,30 +493,214 @@ const setupFolderGUI = () => {
 
     if (modalClose) modalClose.addEventListener('click', closeModal);
     if (modalBack) modalBack.addEventListener('click', closeModal);
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.classList.contains('is-open')) closeModal();
+    });
 };
 
 /* ════════════════════════════════════════
-    ✨ SCROLL REVEAL CARD ENGINE
+    🗂️ TAB INTERFACE (신규)
 ════════════════════════════════════════ */
+const setupTabs = () => {
+    const tabBtns  = document.querySelectorAll('.tab-btn');
+    const tabPanels = document.querySelectorAll('.tab-panel');
+
+    const switchTab = (targetTabId) => {
+        tabBtns.forEach(btn => {
+            const isTarget = btn.dataset.tab === targetTabId;
+            btn.classList.toggle('is-active', isTarget);
+            btn.setAttribute('aria-selected', String(isTarget));
+        });
+
+        tabPanels.forEach(panel => {
+            if (panel.id === `tab-${targetTabId}`) {
+                // 진입 애니메이션: display:block 후 한 프레임 뒤에 is-active 추가
+                panel.classList.add('is-entering');
+                panel.style.display = 'block';
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        panel.classList.add('is-active');
+                        panel.classList.remove('is-entering');
+                        // 탭 전환 시 reveal-card 재관찰
+                        reobserveRevealCards(panel);
+                    });
+                });
+            } else {
+                panel.classList.remove('is-active', 'is-entering');
+                panel.style.display = '';
+            }
+        });
+    };
+
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+
+    // 상단 nav에서 "Projects" 링크 클릭 시 탭 전환
+    document.querySelectorAll('[data-switch-tab]').forEach(link => {
+        link.addEventListener('click', (e) => {
+            const target = link.getAttribute('data-switch-tab');
+            if (target) switchTab(target);
+        });
+    });
+};
+
+/* ════════════════════════════════════════
+    🖼️ PROJECT DETAIL MODAL (신규)
+════════════════════════════════════════ */
+const PROJECT_DATA = {
+    p1: {
+        img:      'project1.jpg',
+        category: '교과 프로젝트',
+        period:   '2024',
+        title:    '그래픽 포스터 제작 프로젝트 [모디곰 BI 포스터]',
+        desc:     '브랜드 아이덴티티 작업의 일환으로 모디곰 캐릭터 브랜드의 BI 포스터를 제작하였습니다. 브랜드의 핵심 가치를 시각적으로 표현하고, 타입과 일러스트레이션의 조화를 통해 완성도 높은 그래픽 결과물을 도출했습니다.',
+        role:     '기획 · 그래픽 디자인 · 타입 설계',
+        tools:    ['Adobe Photoshop', 'Adobe Illustrator'],
+    },
+    p2: {
+        img:      'project2.jpg',
+        category: '교과 프로젝트',
+        period:   '2024',
+        title:    '맛집 지도 서비스 제작 프로젝트 [MZ]',
+        desc:     '사용자 주변의 맛집을 직관적으로 탐색할 수 있는 지도 기반 서비스 UI를 설계하였습니다. 사용자 인터뷰와 경쟁사 분석을 통해 핵심 기능을 정의하고, 피그마로 와이어프레임부터 고해상도 프로토타입까지 제작했습니다.',
+        role:     'UX 리서치 · UI 디자인 · 프로토타이핑',
+        tools:    ['Figma', 'FigJam'],
+    },
+    p3: {
+        img:      'project3.png',
+        category: '동아리 활동',
+        period:   '2024',
+        title:    '급식 티켓팅 서비스 제작 프로젝트 [급식 패스]',
+        desc:     '학교 급식 대기 시간을 줄이기 위한 사전 예약 서비스를 기획하고 디자인하였습니다. 팀원들과 함께 문제 정의부터 서비스 플로우 설계, UI 제작까지 전 과정을 담당했습니다.',
+        role:     '서비스 기획 · UI 디자인 · 팀 협업',
+        tools:    ['Figma', 'FigJam', 'Notion'],
+    },
+    p4: {
+        img:      'project4.png',
+        category: '동아리 활동 · 해커톤',
+        period:   '2024 미림 해커톤',
+        title:    '컬러워크 기록 서비스 제작 프로젝트 [투데인트]',
+        desc:     '하루에 한 번 컬러로 감정을 기록하는 웰니스 서비스입니다. 미림 해커톤에서 팀으로 기획부터 디자인까지 완성하였으며, 감성적인 색상 기반 UX와 심플한 인터페이스를 중점적으로 설계했습니다.',
+        role:     '서비스 기획 · UI/UX 디자인 · 브랜딩',
+        tools:    ['Figma', 'FigJam'],
+    },
+    p5: {
+        img:      'project5.png',
+        category: '동아리 활동',
+        period:   '2024',
+        title:    'JS 스터디 홍보 게시물 제작',
+        desc:     '동아리 내 JavaScript 스터디 모집을 위한 SNS 홍보 게시물을 제작하였습니다. 정보 전달의 명확성과 시각적 매력을 동시에 고려한 그래픽 디자인 결과물입니다.',
+        role:     '그래픽 디자인 · 콘텐츠 제작',
+        tools:    ['Adobe Photoshop', 'Figma'],
+    },
+    p6: {
+        img:      'project6.jpg',
+        category: '교과 프로젝트',
+        period:   '2024',
+        title:    'GUI 스타일별 아이콘 제작 프로젝트',
+        desc:     'Flat, Neumorphism, Glassmorphism, 3D 등 다양한 GUI 스타일을 분석하고, 각 스타일에 맞는 아이콘 세트를 직접 제작하였습니다. 스타일 별 조형 원칙을 이해하고 일관성 있는 세트를 완성하는 것에 집중했습니다.',
+        role:     'UI 디자인 · 아이콘 디자인',
+        tools:    ['Figma', 'Adobe Illustrator'],
+    },
+};
+
+const setupProjectModal = () => {
+    const modal   = document.getElementById('pj-modal');
+    const backdrop = document.getElementById('pj-modal-backdrop');
+    const closeBtn = document.getElementById('pj-modal-close');
+    const imgEl    = document.getElementById('pj-modal-img');
+    const catEl    = document.getElementById('pj-modal-category');
+    const periodEl = document.getElementById('pj-modal-period');
+    const titleEl  = document.getElementById('pj-modal-title');
+    const descEl   = document.getElementById('pj-modal-desc');
+    const roleEl   = document.getElementById('pj-modal-role');
+    const toolsEl  = document.getElementById('pj-modal-tools');
+
+    if (!modal) return;
+
+    const openModal = (projectKey) => {
+        const data = PROJECT_DATA[projectKey];
+        if (!data) return;
+
+        imgEl.src    = data.img;
+        imgEl.alt    = data.title;
+        catEl.textContent    = data.category;
+        periodEl.textContent = data.period;
+        titleEl.textContent  = data.title;
+        descEl.textContent   = data.desc;
+        roleEl.textContent   = data.role;
+
+        toolsEl.innerHTML = '';
+        data.tools.forEach(tool => {
+            const tag = document.createElement('span');
+            tag.className   = 'pj-tag';
+            tag.textContent = tool;
+            toolsEl.appendChild(tag);
+        });
+
+        modal.classList.add('is-open');
+        document.body.style.overflow = 'hidden';
+    };
+
+    const closeModal = () => {
+        modal.classList.remove('is-open');
+        document.body.style.overflow = '';
+    };
+
+    // 프로젝트 카드 클릭 이벤트 (이벤트 위임)
+    document.addEventListener('click', (e) => {
+        const card = e.target.closest('.pj-clickable');
+        if (card) {
+            openModal(card.dataset.project);
+            return;
+        }
+    });
+
+    // 키보드 접근성
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            const card = document.activeElement?.closest('.pj-clickable');
+            if (card) openModal(card.dataset.project);
+        }
+        if (e.key === 'Escape' && modal.classList.contains('is-open')) closeModal();
+    });
+
+    if (closeBtn) closeBtn.addEventListener('click', closeModal);
+    if (backdrop) backdrop.addEventListener('click', closeModal);
+};
+
+/* ════════════════════════════════════════
+    ✨ SCROLL REVEAL
+════════════════════════════════════════ */
+let revealObserver;
+
+const reobserveRevealCards = (container) => {
+    if (!revealObserver) return;
+    const cards = container.querySelectorAll('.reveal-card:not(.is-visible)');
+    cards.forEach(c => revealObserver.observe(c));
+};
+
 const setupReveal = () => {
     const cards = document.querySelectorAll('.reveal-card');
     if (!cards.length) return;
-    const obs = new IntersectionObserver(
+
+    revealObserver = new IntersectionObserver(
         (entries) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
                     entry.target.classList.add('is-visible');
-                    obs.unobserve(entry.target);
+                    revealObserver.unobserve(entry.target);
                 }
             });
         },
-        { threshold: 0.1, rootMargin: '0px 0px -8% 0px' }
+        { threshold: 0.08, rootMargin: '0px 0px -6% 0px' }
     );
-    cards.forEach(c => obs.observe(c));
+    cards.forEach(c => revealObserver.observe(c));
 };
 
 /* ════════════════════════════════════════
-    ✨ EVENT LISTENERS & INTERACTION SYSTEM
+    ✨ EVENT LISTENERS
 ════════════════════════════════════════ */
 window.addEventListener('mousemove', (e) => {
     pointer.tx = e.clientX;
@@ -574,14 +734,15 @@ window.addEventListener('scroll', () => {
 }, { passive: true });
 
 /* ════════════════════════════════════════
-    🔥 INITIALIZATION ON LOAD
+    🔥 INIT
 ════════════════════════════════════════ */
 window.onload = () => {
     buildSectionMap();
+    setupTabs();           // ← 탭 인터페이스 초기화 (신규)
     setupFolderGUI();
+    setupProjectModal();   // ← 프로젝트 모달 초기화 (신규)
     setupReveal();
     initThree();
     animate();
-    // 브라우저 레이아웃 스택 안정화 후 최종 뷰포트 교정
     setTimeout(handleResize, 150); 
 };
