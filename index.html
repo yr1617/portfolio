@@ -20,24 +20,24 @@
   <div class="background-grid"></div>
   <div class="cursor-follower" aria-hidden="true"></div>
 
-  <!-- ①: 메뉴바 — nav-progress 제거, 4개 앵커 링크만 -->
   <header class="topbar">
     <div class="topbar-inner">
       <a class="brand brand-logo" href="#home" aria-label="Yerin Choi Home">
         <img src="logo.png" alt="">
       </a>
       <nav class="topnav" aria-label="주요 섹션">
-        <a href="#home">Home</a>
-        <a href="#tab-root" data-switch-tab="about">About</a>
-        <a href="#tab-root" data-switch-tab="projects">Projects</a>
-        <a href="#contact">Contact</a>
+        <a href="#home"     data-target="home"><span>Home</span><i class="nav-progress"></i></a>
+        <a href="#tab-root" data-target="tab-root"><span>About</span><i class="nav-progress"></i></a>
+        <a href="#tab-root" data-target="tab-root" data-switch-tab="projects"><span>Projects</span><i class="nav-progress"></i></a>
       </nav>
     </div>
   </header>
 
   <main class="page-shell">
 
-    <!-- LANDING -->
+    <!-- ══════════════════════════════════
+         LANDING
+    ══════════════════════════════════ -->
     <section class="landing section" id="home">
       <div class="landing-field" aria-hidden="true">
         <canvas class="landing-canvas"></canvas>
@@ -73,36 +73,40 @@
 
     <div class="page-spotlight" aria-hidden="true"></div>
 
-    <!-- TAB ROOT -->
+    <!-- ══════════════════════════════════
+         TAB ROOT
+    ══════════════════════════════════ -->
     <div class="tab-root content-shell" id="tab-root">
 
-      <!-- ②: 탭 네비 — 심플 라인, 위아래 모두 라운드 없음, 활성 밑줄 단색 -->
-      <div class="tab-nav" role="tablist">
-        <button class="tab-btn is-active" role="tab" data-tab="about"    aria-selected="true">ABOUT</button>
-        <button class="tab-btn"           role="tab" data-tab="projects" aria-selected="false">PROJECTS &amp; EXPERIENCE</button>
+      <!-- ── TAB NAV ── -->
+      <div class="tab-nav" role="tablist" aria-label="포트폴리오 섹션">
+        <button class="tab-btn is-active" role="tab" data-tab="about"    aria-selected="true"  aria-controls="tab-about">ABOUT</button>
+        <button class="tab-btn"           role="tab" data-tab="projects" aria-selected="false" aria-controls="tab-projects">PROJECTS &amp; EXPERIENCE</button>
       </div>
 
-      <!-- ══ ABOUT 탭 ══ -->
-      <div class="tab-panel is-active" id="tab-about" role="tabpanel">
+      <!-- ══════════════════════════════
+           TAB PANEL: ABOUT
+      ══════════════════════════════ -->
+      <div class="tab-panel is-active" id="tab-about" role="tabpanel" aria-labelledby="">
 
-        <!-- Profile 소개 (keyword 블록 제거) -->
+        <!-- 기존 Profile 섹션 (구조 그대로 유지) -->
         <section class="hero section" id="profile">
           <div class="hero-copy reveal-card">
             <h2>About</h2>
             <p class="intro">
               UI·UX 디자인을 공부 중인 학생 디자이너 최예린입니다. 차분하게 대상을 바라보고 꾸준히 실행해 나가는 태도로, 사용자에게 오래 남는 경험을 설계합니다. 부드러운 커뮤니케이션과 유연한 사고를 통해 프로젝트 안에서 안정감 있는 결과를 만들어 갑니다.
             </p>
-            <!-- ③: keyword 삭제 → 희망 직무/산업군을 About 내용에 포함 -->
-            <div class="about-aspiration">
-              <p class="aspiration-label">희망 직무 &amp; 산업군</p>
-              <p class="aspiration-text">
-                <strong>UI·UX 디자이너</strong>로서 IT 서비스·콘텐츠·스타트업 분야에서 사용자가 자연스럽게 서비스를 경험하도록 인터페이스를 설계하고 싶습니다. 비주얼 디자인부터 서비스 기획까지 전 과정에 참여해 완성도 높은 제품을 만드는 것이 목표입니다.
-              </p>
+            <div class="hero-meta">
+              <div class="meta-card">
+                <span class="meta-label">Keyword</span>
+                <div class="keyword-list">
+                  <span>차분</span><span>성실</span><span>유연</span><span>경험</span><span>친절</span>
+                </div>
+              </div>
             </div>
           </div>
           <div class="hero-visual">
-            <!-- ⑦: portrait-frame hover 효과 제거 → .no-hover 클래스 -->
-            <div class="portrait-frame no-hover reveal-card">
+            <div class="portrait-frame reveal-card">
               <img src="profile-new.png" alt="최예린 프로필 이미지">
             </div>
             <div class="hero-note">
@@ -112,82 +116,83 @@
           </div>
         </section>
 
-        <!-- ③⑤: 업무 시 나의 강점 — 카드 뽑기 인터랙션 -->
-        <section class="section strength-section" id="strengths">
-          <div class="section-heading">
-            <p class="eyebrow">MY STRENGTHS</p>
-            <h2>업무 시 나의 강점</h2>
-            <p class="section-lead">카드를 클릭하면 상세 내용을 확인할 수 있습니다.</p>
-          </div>
-          <div class="strength-deck-wrap">
-            <div class="strength-deck" id="strength-deck">
-              <!-- JS로 카드 생성 -->
-            </div>
-            <div class="strength-detail-box" id="strength-detail-box">
-              <p class="strength-detail-placeholder">← 강점 카드를 선택하세요</p>
-            </div>
-          </div>
-        </section>
-
-        <!-- ④: 성장 스토리 — 구불구불 로드맵 -->
-        <section class="section roadmap-section" id="roadmap">
+        <!-- ── 성장 스토리 & 직업계고 선택 동기 ── -->
+        <section class="section about-story-section">
           <div class="section-heading">
             <p class="eyebrow">MY STORY</p>
             <h2>성장 스토리</h2>
-            <p class="section-lead">각 단계에 마우스를 올리거나 클릭하면 상세 내용을 확인할 수 있습니다.</p>
           </div>
-          <div class="roadmap-container">
-            <svg class="roadmap-svg" id="roadmap-svg" viewBox="0 0 900 260" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
-              <!-- 구불구불한 배경 선 -->
-              <path class="road-track" d="M 80,130 C 160,60 240,200 320,130 C 400,60 480,200 560,130 C 640,60 720,200 800,130" fill="none"/>
-              <!-- 진행 선 (JS로 애니메이션) -->
-              <path class="road-progress" id="road-progress" d="M 80,130 C 160,60 240,200 320,130 C 400,60 480,200 560,130 C 640,60 720,200 800,130" fill="none"/>
-              <!-- 노드 1 -->
-              <g class="road-node" data-step="0" transform="translate(80,130)">
-                <circle class="node-ring" r="18"/>
-                <circle class="node-dot"  r="9"/>
-                <text class="node-num" y="1">1</text>
-              </g>
-              <!-- 노드 2 -->
-              <g class="road-node" data-step="1" transform="translate(320,130)">
-                <circle class="node-ring" r="18"/>
-                <circle class="node-dot"  r="9"/>
-                <text class="node-num" y="1">2</text>
-              </g>
-              <!-- 노드 3 -->
-              <g class="road-node" data-step="2" transform="translate(560,130)">
-                <circle class="node-ring" r="18"/>
-                <circle class="node-dot"  r="9"/>
-                <text class="node-num" y="1">3</text>
-              </g>
-              <!-- 노드 4 -->
-              <g class="road-node" data-step="3" transform="translate(800,130)">
-                <circle class="node-ring" r="18"/>
-                <circle class="node-dot"  r="9"/>
-                <text class="node-num" y="1">4</text>
-              </g>
-              <!-- 라벨 (위/아래 교차) -->
-              <text class="road-label" x="80"  y="88"  text-anchor="middle">마이스터고 선택</text>
-              <text class="road-label" x="320" y="188" text-anchor="middle" dy="16">디자인 기본기 학습</text>
-              <text class="road-label" x="560" y="88"  text-anchor="middle">서비스 기획 &amp; 협업</text>
-              <text class="road-label" x="800" y="188" text-anchor="middle" dy="16">AI 활용 &amp; 목표</text>
-            </svg>
-            <!-- 상세 팝업 -->
-            <div class="roadmap-popup" id="roadmap-popup" aria-live="polite">
-              <button class="roadmap-popup-close" id="roadmap-popup-close" aria-label="닫기">✕</button>
-              <p class="roadmap-popup-step" id="roadmap-popup-step"></p>
-              <h3 class="roadmap-popup-title" id="roadmap-popup-title"></h3>
-              <p class="roadmap-popup-body"  id="roadmap-popup-body"></p>
-            </div>
+          <div class="about-grid">
+            <article class="about-card reveal-card">
+              <div class="about-card-icon">📖</div>
+              <h3>직업계고 선택 동기</h3>
+              <p>막연하게 "예쁜 것을 만들고 싶다"는 생각에서 출발했지만, 미림마이스터고를 선택한 건 단순한 취미를 넘어 실무에서 통하는 디자이너가 되고 싶었기 때문입니다. 일반고에서 이론을 배우기보다, 직접 부딪히고 만들어 보는 환경에서 성장하고 싶었습니다.</p>
+            </article>
+            <article class="about-card reveal-card">
+              <div class="about-card-icon">🌱</div>
+              <h3>성장 스토리</h3>
+              <p>입학 초기에는 피그마의 기본 도형도 어색했지만, 교과 프로젝트와 동아리 활동을 거치며 브랜딩, UI 설계, 서비스 기획까지 폭넓게 경험할 수 있었습니다. 해커톤에서 밤새 팀원들과 아이디어를 갈고닦으며 협업의 진짜 의미를 배웠습니다.</p>
+            </article>
+          </div>
+        </section>
+
+        <!-- ── 강점 & 희망 직무 ── -->
+        <section class="section about-strength-section">
+          <div class="section-heading">
+            <p class="eyebrow">STRENGTHS & GOALS</p>
+            <h2>강점과 목표</h2>
+          </div>
+          <div class="about-strength-grid">
+            <article class="strength-card reveal-card">
+              <span class="strength-num">01</span>
+              <h3>업무 시 나의 강점</h3>
+              <ul class="strength-list">
+                <li><span class="sl-dot">◆</span>차분하고 꼼꼼한 작업 태도로 디테일을 놓치지 않습니다.</li>
+                <li><span class="sl-dot">◆</span>팀 내에서 부드러운 소통으로 갈등을 최소화하고 협업 분위기를 안정적으로 유지합니다.</li>
+                <li><span class="sl-dot">◆</span>사용자 입장에서 먼저 생각하고, 경험의 흐름을 설계하는 데 집중합니다.</li>
+                <li><span class="sl-dot">◆</span>피드백을 방어적으로 받아들이지 않고, 성장의 기회로 유연하게 수용합니다.</li>
+              </ul>
+            </article>
+            <article class="strength-card reveal-card">
+              <span class="strength-num">02</span>
+              <h3>희망 산업군 &amp; 직무</h3>
+              <div class="goal-tag-row">
+                <span class="goal-tag">IT 서비스</span>
+                <span class="goal-tag">콘텐츠·미디어</span>
+                <span class="goal-tag">스타트업</span>
+              </div>
+              <p style="margin-top:18px; color:var(--muted); line-height:1.75; font-size:0.95rem;">
+                <strong style="color:var(--sub);">UI·UX 디자이너</strong>로서 사용자가 자연스럽게 서비스를 경험할 수 있도록 인터페이스를 설계하는 역할을 희망합니다. 비주얼 디자인뿐 아니라 서비스 기획 단계부터 참여해 제품의 완성도를 높이고 싶습니다.
+              </p>
+            </article>
+            <article class="strength-card reveal-card">
+              <span class="strength-num">03</span>
+              <h3>희망 이유</h3>
+              <p style="color:var(--muted); line-height:1.75; font-size:0.95rem;">
+                사람들이 매일 사용하는 서비스에서 "이 버튼 진짜 편하다", "화면이 직관적이다"라는 느낌을 주는 디자이너가 되고 싶습니다. 기능과 아름다움이 함께 살아 있는 경험을 만드는 것이 제가 이 직무를 선택한 이유입니다.
+              </p>
+            </article>
+            <article class="strength-card reveal-card">
+              <span class="strength-num">04</span>
+              <h3>앞으로의 목표</h3>
+              <ul class="strength-list">
+                <li><span class="sl-dot">◆</span>단기: 실무에서 바로 활용 가능한 피그마 스킬과 프로토타이핑 역량 강화</li>
+                <li><span class="sl-dot">◆</span>중기: UI·UX 디자이너로 취업 후, 실제 서비스에 디자인을 반영하는 경험 축적</li>
+                <li><span class="sl-dot">◆</span>장기: 사용자 리서치부터 최종 서비스 출시까지 전 과정을 주도할 수 있는 프로덕트 디자이너로 성장</li>
+              </ul>
+            </article>
           </div>
         </section>
 
       </div><!-- /tab-about -->
 
-      <!-- ══ PROJECTS & EXPERIENCE 탭 ══ -->
-      <div class="tab-panel" id="tab-projects" role="tabpanel">
 
-        <!-- PROJECT TYPE -->
+      <!-- ══════════════════════════════
+           TAB PANEL: PROJECTS & EXPERIENCE
+      ══════════════════════════════ -->
+      <div class="tab-panel" id="tab-projects" role="tabpanel" aria-labelledby="">
+
+        <!-- ── PROJECT TYPE (기존 그대로) ── -->
         <section class="section" id="project-list">
           <div class="section-heading">
             <p class="eyebrow">PROJECT TYPE</p>
@@ -215,81 +220,76 @@
           </div>
         </section>
 
-        <!-- ⑥: MAIN PROJECT — 2025 상단 / 2026 하단, 가로 이미지 비율 -->
+        <!-- ── MAIN PROJECT (클릭 모달 추가) ── -->
         <section class="section" id="main-project">
           <div class="section-heading">
             <p class="eyebrow">MAIN PROJECT</p>
             <h2>주요 프로젝트</h2>
             <p class="section-lead">카드를 클릭하면 상세 정보를 확인할 수 있습니다.</p>
           </div>
-
-          <!-- 2025 row -->
-          <p class="project-year-label">2025</p>
           <div class="main-project-grid">
-            <article class="main-project-card reveal-card pj-clickable" data-project="p2" tabindex="0" role="button">
-              <div class="project-thumb"><img src="project2.jpg" alt="맛집 지도 서비스 MZ"></div>
-              <div class="project-card-body">
-                <span>교과 프로젝트</span>
-                <h3>맛집 지도 서비스 제작 프로젝트 [MZ]</h3>
-                <p class="pj-hover-hint">클릭하여 상세 보기 →</p>
-              </div>
-            </article>
-            <article class="main-project-card reveal-card pj-clickable" data-project="p4" tabindex="0" role="button">
-              <div class="project-thumb"><img src="project4.png" alt="투데인트"></div>
-              <div class="project-card-body">
-                <span>동아리 활동</span>
-                <h3>컬러워크 기록 서비스 제작 프로젝트 [투데인트]</h3>
-                <p class="pj-hover-hint">클릭하여 상세 보기 →</p>
-              </div>
-            </article>
-            <article class="main-project-card reveal-card pj-clickable" data-project="p6" tabindex="0" role="button">
-              <div class="project-thumb"><img src="project6.jpg" alt="GUI 아이콘"></div>
-              <div class="project-card-body">
-                <span>교과 프로젝트</span>
-                <h3>GUI 스타일별 아이콘 제작 프로젝트</h3>
-                <p class="pj-hover-hint">클릭하여 상세 보기 →</p>
-              </div>
-            </article>
-          </div>
 
-          <!-- 2026 row -->
-          <p class="project-year-label" style="margin-top:32px;">2026</p>
-          <div class="main-project-grid">
-            <article class="main-project-card reveal-card pj-clickable" data-project="p1" tabindex="0" role="button">
+            <article class="main-project-card reveal-card pj-clickable"
+                     data-project="p1" tabindex="0" role="button" aria-label="모디곰 BI 포스터 상세 보기">
               <div class="project-thumb"><img src="project1.jpg" alt="모디곰 BI 포스터"></div>
-              <div class="project-card-body">
-                <span>교과 프로젝트</span>
-                <h3>그래픽 포스터 제작 프로젝트 [모디곰 BI 포스터]</h3>
-                <p class="pj-hover-hint">클릭하여 상세 보기 →</p>
-              </div>
+              <span>교과 프로젝트</span>
+              <h3>그래픽 포스터 제작 프로젝트 [모디곰 BI 포스터]</h3>
+              <div class="pj-hover-hint">클릭하여 상세 보기 →</div>
             </article>
-            <article class="main-project-card reveal-card pj-clickable" data-project="p3" tabindex="0" role="button">
+
+            <article class="main-project-card reveal-card pj-clickable"
+                     data-project="p2" tabindex="0" role="button" aria-label="MZ 상세 보기">
+              <div class="project-thumb"><img src="project2.jpg" alt="맛집 지도 서비스 MZ"></div>
+              <span>교과 프로젝트</span>
+              <h3>맛집 지도 서비스 제작 프로젝트 [MZ]</h3>
+              <div class="pj-hover-hint">클릭하여 상세 보기 →</div>
+            </article>
+
+            <article class="main-project-card reveal-card pj-clickable"
+                     data-project="p3" tabindex="0" role="button" aria-label="급식 패스 상세 보기">
               <div class="project-thumb"><img src="project3.png" alt="급식 패스"></div>
-              <div class="project-card-body">
-                <span>동아리 활동</span>
-                <h3>급식 티켓팅 서비스 제작 프로젝트 [급식 패스]</h3>
-                <p class="pj-hover-hint">클릭하여 상세 보기 →</p>
-              </div>
+              <span>동아리 활동</span>
+              <h3>급식 티켓팅 서비스 제작 프로젝트 [급식 패스]</h3>
+              <div class="pj-hover-hint">클릭하여 상세 보기 →</div>
             </article>
-            <article class="main-project-card reveal-card pj-clickable" data-project="p5" tabindex="0" role="button">
+
+            <article class="main-project-card reveal-card pj-clickable"
+                     data-project="p4" tabindex="0" role="button" aria-label="투데인트 상세 보기">
+              <div class="project-thumb"><img src="project4.png" alt="투데인트"></div>
+              <span>동아리 활동</span>
+              <h3>컬러워크 기록 서비스 제작 프로젝트 [투데인트]</h3>
+              <div class="pj-hover-hint">클릭하여 상세 보기 →</div>
+            </article>
+
+            <article class="main-project-card reveal-card pj-clickable"
+                     data-project="p5" tabindex="0" role="button" aria-label="JS 스터디 홍보 상세 보기">
               <div class="project-thumb"><img src="project5.png" alt="JS 스터디 홍보 게시물"></div>
-              <div class="project-card-body">
-                <span>동아리 활동</span>
-                <h3>JS 스터디 홍보 게시물 제작</h3>
-                <p class="pj-hover-hint">클릭하여 상세 보기 →</p>
-              </div>
+              <span>동아리 활동</span>
+              <h3>JS 스터디 홍보 게시물 제작</h3>
+              <div class="pj-hover-hint">클릭하여 상세 보기 →</div>
             </article>
+
+            <article class="main-project-card reveal-card pj-clickable"
+                     data-project="p6" tabindex="0" role="button" aria-label="GUI 아이콘 상세 보기">
+              <div class="project-thumb"><img src="project6.jpg" alt="GUI 아이콘"></div>
+              <span>교과 프로젝트</span>
+              <h3>GUI 스타일별 아이콘 제작 프로젝트</h3>
+              <div class="pj-hover-hint">클릭하여 상세 보기 →</div>
+            </article>
+
           </div>
         </section>
 
-        <!-- CAREER & AWARDS -->
+        <!-- ── CAREER & AWARDS (기존 그대로) ── -->
         <section class="section" id="career-awards">
           <div class="section-heading">
             <p class="eyebrow">CAREER &amp; AWARDS</p>
             <h2>학습, 활동, 성취의 흐름을<br>한눈에 담은 이력 아카이브</h2>
             <p class="section-lead">교과 경험부터 독서, 자격, 수상, 교내 활동까지 디자인을 만드는 기반이 된 기록들을 정리했습니다.</p>
           </div>
+
           <div class="desktop-grid" id="desktop-grid">
+            <!-- 폴더 1 -->
             <div class="folder-item" data-folder="academic" tabindex="0" role="button" aria-label="교과 프로젝트 경험 폴더">
               <div class="folder-icon">
                 <svg class="folder-svg" viewBox="0 0 64 52" xmlns="http://www.w3.org/2000/svg">
@@ -303,6 +303,7 @@
               </div>
               <span class="folder-label">교과 프로젝트<br>경험</span>
             </div>
+            <!-- 폴더 2 -->
             <div class="folder-item" data-folder="club" tabindex="0" role="button" aria-label="교내·동아리 활동 폴더">
               <div class="folder-icon">
                 <svg class="folder-svg" viewBox="0 0 64 52" xmlns="http://www.w3.org/2000/svg">
@@ -316,6 +317,7 @@
               </div>
               <span class="folder-label">교내 활동<br>동아리</span>
             </div>
+            <!-- 폴더 3 -->
             <div class="folder-item" data-folder="personal" tabindex="0" role="button" aria-label="개인 프로젝트 경험 폴더">
               <div class="folder-icon">
                 <svg class="folder-svg" viewBox="0 0 64 52" xmlns="http://www.w3.org/2000/svg">
@@ -329,6 +331,7 @@
               </div>
               <span class="folder-label">개인 프로젝트<br>경험</span>
             </div>
+            <!-- 폴더 4 -->
             <div class="folder-item" data-folder="books" tabindex="0" role="button" aria-label="독서 경험 폴더">
               <div class="folder-icon">
                 <svg class="folder-svg" viewBox="0 0 64 52" xmlns="http://www.w3.org/2000/svg">
@@ -342,6 +345,7 @@
               </div>
               <span class="folder-label">독서 경험</span>
             </div>
+            <!-- 폴더 5 -->
             <div class="folder-item" data-folder="cert" tabindex="0" role="button" aria-label="자격취득 폴더">
               <div class="folder-icon">
                 <svg class="folder-svg" viewBox="0 0 64 52" xmlns="http://www.w3.org/2000/svg">
@@ -355,6 +359,7 @@
               </div>
               <span class="folder-label">자격 취득<br>내용</span>
             </div>
+            <!-- 폴더 6 -->
             <div class="folder-item" data-folder="awards" tabindex="0" role="button" aria-label="수상 이력 폴더">
               <div class="folder-icon">
                 <svg class="folder-svg folder-svg-accent" viewBox="0 0 64 52" xmlns="http://www.w3.org/2000/svg">
@@ -372,12 +377,15 @@
           <p class="desktop-hint">클릭으로 선택 · 더블클릭으로 열기</p>
         </section>
 
-        <!-- CONTACT -->
+        <!-- ── CONTACT (기존 그대로) ── -->
         <section class="section contact-section" id="contact">
           <div class="contact-copy reveal-card">
             <p class="eyebrow">CONTACT</p>
             <h2>project with me?</h2>
-            <p>협업 제안과 프로젝트 문의를 위한 연락 섹션입니다.<br>오른쪽 버튼을 클릭할 시 이메일로 이동합니다.</p>
+            <p>
+              협업 제안과 프로젝트 문의를 위한 연락 섹션입니다.<br>
+              오른쪽 버튼을 클릭할 시 이메일로 이동합니다.
+            </p>
           </div>
           <div class="contact-card reveal-card">
             <p class="contact-label">Available For</p>
@@ -388,15 +396,19 @@
             </ul>
             <a class="contact-button"
                href="https://mail.google.com/mail/?view=cm&fs=1&to=d-2535%40e-mirim.hs.kr"
-               target="_blank" rel="noopener noreferrer">Let&apos;s Connect</a>
+               target="_blank"
+               rel="noopener noreferrer">Let&apos;s Connect</a>
           </div>
         </section>
 
       </div><!-- /tab-projects -->
+
     </div><!-- /tab-root -->
   </main>
 
-  <!-- 폴더 모달 -->
+  <!-- ══════════════════════════════
+       폴더 팝업 모달 (기존 그대로)
+  ══════════════════════════════ -->
   <div class="folder-modal" id="folder-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal-backdrop" id="modal-backdrop"></div>
     <div class="modal-window">
@@ -413,7 +425,9 @@
     </div>
   </div>
 
-  <!-- ⑥: 프로젝트 상세 모달 — 가로 이미지 비율 -->
+  <!-- ══════════════════════════════
+       프로젝트 상세 모달 (신규)
+  ══════════════════════════════ -->
   <div class="pj-modal" id="pj-modal" role="dialog" aria-modal="true" aria-labelledby="pj-modal-title">
     <div class="pj-modal-backdrop" id="pj-modal-backdrop"></div>
     <div class="pj-modal-window">
@@ -424,10 +438,10 @@
       <div class="pj-modal-body">
         <div class="pj-modal-meta-row">
           <span class="pj-modal-category" id="pj-modal-category"></span>
-          <span class="pj-modal-period"   id="pj-modal-period"></span>
+          <span class="pj-modal-period" id="pj-modal-period"></span>
         </div>
         <h2 class="pj-modal-title" id="pj-modal-title"></h2>
-        <p  class="pj-modal-desc"  id="pj-modal-desc"></p>
+        <p class="pj-modal-desc" id="pj-modal-desc"></p>
         <div class="pj-modal-info-grid">
           <div class="pj-modal-info-item">
             <span class="pj-info-label">담당 역할</span>
@@ -442,6 +456,6 @@
     </div>
   </div>
 
-  <script type="module" src="script.js?v=22"></script>
+  <script type="module" src="script.js?v=21"></script>
 </body>
 </html>
