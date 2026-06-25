@@ -266,7 +266,7 @@ const setupTarotCards = () => {
     const oldHint = section.querySelector('.tarot-hint');
     if (oldHint) oldHint.remove();
 
-    // 힌트 텍스트 (글자 완벽하게 비움)
+    // 힌트 텍스트 완전 비움
     const hint = document.createElement('p');
     hint.className = 'scatter-hint';
     hint.textContent = '';
@@ -277,32 +277,27 @@ const setupTarotCards = () => {
     scatter.className = 'scatter-wrap';
     section.appendChild(scatter);
 
-    // 컨테이너 너비에 따라 좌표 스케일 조정
-    const getScaledLayout = () => {
-        const w = scatter.offsetWidth || 800;
-        const scaleX = Math.min(1, w / 800);
-        return SCATTER_LAYOUT.map(l => ({
-            x:   Math.round(l.x * scaleX),
-            y:   l.y,
-            rot: l.rot,
-        }));
-    };
-
     STRENGTH_DATA.forEach((item, i) => {
-        const layout = getScaledLayout()[i];
-
         const card = document.createElement('div');
         card.className = 'scatter-card';
         
-        // ─── 뭉침 해결을 위한 자동 분산 좌표 주입 ───
-        const offsets = [-260, -90, 80, 250, 420]; // 5장이 겹치지 않게 가로 좌표 분산
-        const rotations = [-14, -6, 2, 10, 18];     // 자연스러운 부채꼴 회전각
+        // ─── [수정] 뭉침 해결을 위한 초기 부채꼴 분산 좌표 계산 ───
+        const containerWidth = scatter.offsetWidth || 800;
+        const centerX = containerWidth / 2;
         
-        card.style.left = `calc(50% + ${offsets[i] || 0}px)`;
-        card.style.top = '40%';
-        card.style.transform = `translate(-50%, -50%) rotate(${rotations[i] || 0}deg)`;
-        card.style.setProperty('--sc-rot', `${rotations[i] || 0}deg`);
-        card.style.zIndex    = String(i + 1);
+        // 5장이 중앙을 기준으로 이격되도록 픽셀값 직접 계산
+        const offsets = [-260, -90, 80, 250, 420]; 
+        const rotations = [-14, -6, 2, 10, 18];     
+        
+        // left와 top을 시작부터 %가 아닌 순수 px 좌표로 고정
+        const initialLeft = centerX + offsets[i] - 75; // 75는 카드 너비 절반
+        const initialTop = 100; // 상단 여백 px 고정
+        
+        card.style.left = `${initialLeft}px`;
+        card.style.top = `${initialTop}px`;
+        card.style.transform = `rotate(${rotations[i]}deg)`;
+        card.style.setProperty('--sc-rot', `${rotations[i]}deg`);
+        card.style.zIndex = String(i + 1);
 
         const inner = document.createElement('div');
         inner.className = 'scatter-card-inner';
@@ -327,7 +322,7 @@ const setupTarotCards = () => {
         card.appendChild(inner);
         scatter.appendChild(card);
 
-        // ── 드래그 + 클릭 구분 ──
+        // ── 드래그 + 클릭 구분 (순수 px 연산으로 에러 방지) ──
         let isDragging = false;
         let dragStarted = false;
         let startX, startY, cardStartLeft, cardStartTop;
@@ -339,8 +334,8 @@ const setupTarotCards = () => {
             isDragging  = true;
             dragStarted = false;
             startX = e.clientX; startY = e.clientY;
-            cardStartLeft = parseFloat(card.style.left) || 0;
-            cardStartTop  = parseFloat(card.style.top)  || 0;
+            cardStartLeft = parseFloat(card.style.left) || initialLeft;
+            cardStartTop  = parseFloat(card.style.top)  || initialTop;
             lastX = e.clientX; lastY = e.clientY;
             velX  = 0; velY = 0;
             card.style.zIndex    = '100';
@@ -359,8 +354,10 @@ const setupTarotCards = () => {
                 velX = e.clientX - lastX;
                 velY = e.clientY - lastY;
                 lastX = e.clientX; lastY = e.clientY;
-                card.style.left = `calc(50% + ${offsets[i] || 0}px + ${dx}px)`;
-                card.style.top  = `calc(40% + ${dy}px)`;
+                
+                // 복잡한 문자열 더하기나 calc 없이 숫자로만 계산
+                card.style.left = `${cardStartLeft + dx}px`;
+                card.style.top  = `${cardStartTop + dy}px`;
             }
         };
 
@@ -368,16 +365,16 @@ const setupTarotCards = () => {
             if (!isDragging) return;
             isDragging = false;
             if (dragStarted) {
-                // 관성
+                // 관성 효과
                 let vx = velX * 3.2, vy = velY * 3.2;
-                let cl = parseFloat(card.style.left) || 0;
-                let ct = parseFloat(card.style.top) || 0;
+                let cl = parseFloat(card.style.left) || initialLeft;
+                let ct = parseFloat(card.style.top) || initialTop;
                 cancelAnimationFrame(rafId);
                 const inertia = () => {
                     vx *= 0.80; vy *= 0.80;
                     cl += vx; ct += vy;
-                    card.style.left = `calc(50% + ${offsets[i] || 0}px + ${cl}px)`;
-                    card.style.top  = `calc(40% + ${ct}px)`;
+                    card.style.left = `${cl}px`;
+                    card.style.top  = `${ct}px`;
                     if (Math.abs(vx) > 0.3 || Math.abs(vy) > 0.3) {
                         rafId = requestAnimationFrame(inertia);
                     } else {
