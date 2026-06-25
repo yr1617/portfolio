@@ -837,3 +837,23 @@ window.onload = () => {
     animate();
     setTimeout(handleResize, 150);
 };
+/* ==========================================================================
+   최종 수정본: 파일 맨 밑에 그대로 추가하시면 됩니다.
+   ========================================================================== */
+document.addEventListener('DOMContentLoaded', () => {
+    // 로드맵 항목 클릭 시 옆에 밀착된 팝업 표시 전용 토글
+    document.querySelectorAll('.timeline-item').forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const isActive = this.classList.contains('is-active');
+            document.querySelectorAll('.timeline-item').forEach(i => i.classList.remove('is-active'));
+            if (!isActive) {
+                this.classList.add('is-active');
+            }
+        });
+    });
+    // 바깥 클릭 시 팝업 닫기
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.timeline-item').forEach(i => i.classList.remove('is-active'));
+    });
+});
