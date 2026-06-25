@@ -289,18 +289,20 @@ const setupTarotCards = () => {
         }));
     };
 
-    STRENGTH_DATA.forEach((item, i) => {
+   STRENGTH_DATA.forEach((item, i) => {
         const layout = getScaledLayout()[i];
 
         const card = document.createElement('div');
         card.className = 'scatter-card';
-        card.style.left      = `${layout.x}px`;
-        card.style.top       = `${layout.y}px`;
-        card.style.setProperty('--sc-rot', `${layout.rot}deg`);
+        
+        // ─── 뭉침 해결을 위한 자동 분산 좌표 주입 ───
+        const offsets = [-260, -90, 80, 250, 420]; // 5장이 겹치지 않게 가로 좌표 분산
+        const rotations = [-14, -6, 2, 10, 18];     // 자연스러운 부채꼴 회전각
+        
+        card.style.left = `calc(50% + ${offsets[i] || 0}px)`;
+        card.style.top = '40%';
+        card.style.transform = `translate(-50%, -50%) rotate(${rotations[i] || 0}deg)`;
         card.style.zIndex    = String(i + 1);
-
-        const inner = document.createElement('div');
-        inner.className = 'scatter-card-inner';
 
         // 뒷면 (초기: 아이콘 + 키워드)
         const back = document.createElement('div');
