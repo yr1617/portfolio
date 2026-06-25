@@ -242,55 +242,73 @@ const STRENGTH_DATA = [
     { keyword: '친절한 소통', icon: '◇', desc: '협업 과정에서 갈등을 최소화하는 커뮤니케이션 방식을 추구합니다. 의견 충돌 시에도 상대방의 의도를 먼저 이해하려 노력합니다.' }
 ];
 
-// 초기 산포 레이아웃 (각 카드의 위치 및 회전)
+// 초기 산포 레이아웃
+// scatter-wrap: width 100%(~800px), height 480px
+// 카드: 150×210px → 5장이 여유 있게 분산되도록
+// 컨테이너 너비를 ~800px로 가정, 우측 여백 고려해 최대 x ~580
 const SCATTER_LAYOUT = [
-    { x:  60, y:  40, rot: -12 },
-    { x: 200, y:  20, rot:   5 },
-    { x: 340, y:  50, rot:  15 },
-    { x: 100, y: 180, rot:  -6 },
-    { x: 260, y: 160, rot:   9 },
+    { x:  10, y:  20, rot: -11 },   // 좌상단
+    { x: 215, y:   8, rot:   5 },   // 중상단
+    { x: 430, y:  18, rot:  14 },   // 우상단
+    { x:  90, y: 240, rot:  -6 },   // 좌하단
+    { x: 330, y: 225, rot:   9 },   // 중하단
 ];
 
 const setupTarotCards = () => {
     const section = document.getElementById('strengths');
     if (!section) return;
 
-    // 기존 tarot-wrap 제거 후 새 컨테이너 생성
+    // 기존 요소 제거
     const oldWrap = section.querySelector('.tarot-wrap');
     if (oldWrap) oldWrap.remove();
+    const oldScatter = section.querySelector('.scatter-wrap');
+    if (oldScatter) oldScatter.remove();
     const oldHint = section.querySelector('.tarot-hint');
     if (oldHint) oldHint.remove();
 
-    // 산포 영역 컨테이너
+    // 힌트 텍스트
+    const hint = document.createElement('p');
+    hint.className = 'scatter-hint';
+    hint.textContent = '드래그로 이동 · 클릭으로 뒤집기';
+    section.appendChild(hint);
+
+    // 산포 컨테이너
     const scatter = document.createElement('div');
     scatter.className = 'scatter-wrap';
     section.appendChild(scatter);
 
+    // 컨테이너 너비에 따라 좌표 스케일 조정
+    const getScaledLayout = () => {
+        const w = scatter.offsetWidth || 800;
+        const scaleX = Math.min(1, w / 800);
+        return SCATTER_LAYOUT.map(l => ({
+            x:   Math.round(l.x * scaleX),
+            y:   l.y,
+            rot: l.rot,
+        }));
+    };
+
     STRENGTH_DATA.forEach((item, i) => {
-        const layout = SCATTER_LAYOUT[i];
+        const layout = getScaledLayout()[i];
 
         const card = document.createElement('div');
         card.className = 'scatter-card';
-        card.style.setProperty('--sc-x',   `${layout.x}px`);
-        card.style.setProperty('--sc-y',   `${layout.y}px`);
-        card.style.setProperty('--sc-rot', `${layout.rot}deg`);
-        card.style.setProperty('--sc-z',   String(i + 1));
         card.style.left      = `${layout.x}px`;
         card.style.top       = `${layout.y}px`;
-        card.style.transform = `rotate(${layout.rot}deg)`;
+        card.style.setProperty('--sc-rot', `${layout.rot}deg`);
         card.style.zIndex    = String(i + 1);
 
         const inner = document.createElement('div');
         inner.className = 'scatter-card-inner';
 
-        // 뒷면 (초기 노출면: 아이콘 + 키워드)
+        // 뒷면 (초기: 아이콘 + 키워드)
         const back = document.createElement('div');
         back.className = 'scatter-face scatter-back';
         back.innerHTML = `
             <span class="sc-icon">${item.icon}</span>
             <span class="sc-keyword">${item.keyword}</span>`;
 
-        // 앞면 (뒤집혔을 때: 키워드 + 설명)
+        // 앞면 (클릭 후: 키워드 + 설명)
         const front = document.createElement('div');
         front.className = 'scatter-face scatter-front';
         front.innerHTML = `
@@ -303,62 +321,58 @@ const setupTarotCards = () => {
         card.appendChild(inner);
         scatter.appendChild(card);
 
-        // ── 드래그 ──
+        // ── 드래그 + 클릭 구분 ──
         let isDragging = false;
         let dragStarted = false;
         let startX, startY, cardStartLeft, cardStartTop;
         let velX = 0, velY = 0, lastX, lastY;
         let rafId;
 
-        card.addEventListener('mousedown', (e) => {
+        const onMouseDown = (e) => {
             if (e.button !== 0) return;
-            isDragging = true;
+            isDragging  = true;
             dragStarted = false;
-            startX = e.clientX;
-            startY = e.clientY;
+            startX = e.clientX; startY = e.clientY;
             cardStartLeft = parseFloat(card.style.left) || 0;
             cardStartTop  = parseFloat(card.style.top)  || 0;
-            lastX = e.clientX;
-            lastY = e.clientY;
-            velX = 0; velY = 0;
-            card.style.zIndex = '100';
+            lastX = e.clientX; lastY = e.clientY;
+            velX  = 0; velY = 0;
+            card.style.zIndex    = '100';
             card.style.transition = 'none';
             e.preventDefault();
-        });
+        };
 
-        document.addEventListener('mousemove', (e) => {
+        const onMouseMove = (e) => {
             if (!isDragging) return;
             const dx = e.clientX - startX;
             const dy = e.clientY - startY;
-            if (!dragStarted && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) {
+            if (!dragStarted && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
                 dragStarted = true;
             }
             if (dragStarted) {
                 velX = e.clientX - lastX;
                 velY = e.clientY - lastY;
-                lastX = e.clientX;
-                lastY = e.clientY;
+                lastX = e.clientX; lastY = e.clientY;
                 card.style.left = `${cardStartLeft + dx}px`;
                 card.style.top  = `${cardStartTop  + dy}px`;
             }
-        });
+        };
 
-        document.addEventListener('mouseup', (e) => {
+        const onMouseUp = () => {
             if (!isDragging) return;
             isDragging = false;
-
             if (dragStarted) {
-                // 관성 (damped inertia) — 빠릿하게 멈추도록 조정
-                let vx = velX * 3.5, vy = velY * 3.5;
-                let curLeft = parseFloat(card.style.left);
-                let curTop  = parseFloat(card.style.top);
+                // 관성
+                let vx = velX * 3.2, vy = velY * 3.2;
+                let cl = parseFloat(card.style.left);
+                let ct = parseFloat(card.style.top);
                 cancelAnimationFrame(rafId);
                 const inertia = () => {
-                    vx *= 0.82; vy *= 0.82;   // 강한 브레이크
-                    curLeft += vx; curTop += vy;
-                    card.style.left = `${curLeft}px`;
-                    card.style.top  = `${curTop}px`;
-                    if (Math.abs(vx) > 0.4 || Math.abs(vy) > 0.4) {
+                    vx *= 0.80; vy *= 0.80;
+                    cl += vx; ct += vy;
+                    card.style.left = `${cl}px`;
+                    card.style.top  = `${ct}px`;
+                    if (Math.abs(vx) > 0.3 || Math.abs(vy) > 0.3) {
                         rafId = requestAnimationFrame(inertia);
                     } else {
                         card.style.zIndex = String(i + 1);
@@ -366,11 +380,15 @@ const setupTarotCards = () => {
                 };
                 rafId = requestAnimationFrame(inertia);
             } else {
-                // 드래그 없었으면 클릭 → 플립
+                // 클릭 → 3D 플립
                 card.style.zIndex = String(i + 10);
                 inner.classList.toggle('is-flipped');
             }
-        });
+        };
+
+        card.addEventListener('mousedown', onMouseDown);
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup',   onMouseUp);
     });
 };
 
@@ -400,179 +418,210 @@ const setupTimeline = () => {
     const wrap = document.getElementById('timeline-wrap');
     if (!wrap) return;
 
-    const W = 700, H = 600;
+    // 그리드 레이아웃: 좌 SVG + 우 사이드 패널
+    wrap.style.cssText = 'display:grid; grid-template-columns:1fr 280px; gap:28px; align-items:start;';
+
+    const svgWrap = document.createElement('div');
+    svgWrap.style.position = 'relative';
+
+    // 사이드 패널
+    const panel = document.createElement('div');
+    panel.className = 'rm-side-panel';
+    panel.innerHTML = `
+        <div class="rm-side-empty">
+            <span class="rm-side-empty-icon">✦</span>
+            <p>노드를 클릭하거나<br>마우스를 올리면<br>상세 내용이 표시됩니다</p>
+        </div>
+        <div class="rm-side-content"></div>`;
+
+    wrap.appendChild(svgWrap);
+    wrap.appendChild(panel);
+
+    const sideEmpty   = panel.querySelector('.rm-side-empty');
+    const sideContent = panel.querySelector('.rm-side-content');
+
+    // pin 상태를 객체로 관리 (클로저에서 항상 최신값 참조)
+    const state = { pinned: -1 };
+
+    const showSide = (data) => {
+        sideEmpty.style.display   = 'none';
+        sideContent.style.display = 'block';
+        sideContent.style.animation = 'none';
+        void sideContent.offsetHeight; // reflow
+        sideContent.style.animation = '';
+        sideContent.innerHTML = `
+            <p class="rm-side-step">${data.step}</p>
+            <h3 class="rm-side-title">${data.title}</h3>
+            <p class="rm-side-body">${data.body}</p>`;
+    };
+    const hideSide = () => {
+        // state.pinned가 -1일 때만 숨김
+        if (state.pinned !== -1) return;
+        sideEmpty.style.display   = 'block';
+        sideContent.style.display = 'none';
+    };
+
+    // SVG
+    const VW = 320, VH = 500;
+
+    // 노드 위치: 좌(x≈80) / 우(x≈240) 교차
     const nodes = [
-        { x: 180, y: 100, side: 'right' },
-        { x: 520, y: 230, side: 'left'  },
-        { x: 180, y: 370, side: 'right' },
-        { x: 520, y: 500, side: 'left'  },
+        { x:  72, y:  70 },
+        { x: 248, y: 185 },
+        { x:  72, y: 320 },
+        { x: 248, y: 435 },
     ];
 
-    const pathD = `M ${nodes[0].x} ${nodes[0].y}
-        C ${nodes[0].x + 200} ${nodes[0].y},
-          ${nodes[1].x - 200} ${nodes[1].y},
-          ${nodes[1].x} ${nodes[1].y}
-        C ${nodes[1].x + 160} ${nodes[1].y},
-          ${nodes[2].x - 160} ${nodes[2].y},
-          ${nodes[2].x} ${nodes[2].y}
-        C ${nodes[2].x + 200} ${nodes[2].y},
-          ${nodes[3].x - 200} ${nodes[3].y},
-          ${nodes[3].x} ${nodes[3].y}`;
+    // 완만한 S자 — 컨트롤 포인트를 노드 수직 방향으로 충분히 이격
+    const cx = (a, b) => {
+        const midY = (a.y + b.y) / 2;
+        return `C ${a.x} ${midY}, ${b.x} ${midY}, ${b.x} ${b.y}`;
+    };
+    const pathD = [
+        `M ${nodes[0].x} ${nodes[0].y}`,
+        cx(nodes[0], nodes[1]),
+        cx(nodes[1], nodes[2]),
+        cx(nodes[2], nodes[3]),
+    ].join(' ');
 
-    const svgNS = 'http://www.w3.org/2000/svg';
-    const svg = document.createElementNS(svgNS, 'svg');
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
     svg.setAttribute('class', 'roadmap-svg-new');
-    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-    svg.setAttribute('xmlns', svgNS);
+    svg.setAttribute('viewBox', `0 0 ${VW} ${VH}`);
 
-    const trackPath = document.createElementNS(svgNS, 'path');
-    trackPath.setAttribute('d', pathD);
-    trackPath.setAttribute('class', 'rm-track');
-    svg.appendChild(trackPath);
+    // 트랙 (회색 배경선)
+    const track = document.createElementNS(ns, 'path');
+    track.setAttribute('d', pathD);
+    track.setAttribute('class', 'rm-track');
+    svg.appendChild(track);
 
-    const progressPath = document.createElementNS(svgNS, 'path');
-    progressPath.setAttribute('d', pathD);
-    progressPath.setAttribute('class', 'rm-progress');
-    svg.appendChild(progressPath);
+    // 진행선 (컬러)
+    const prog = document.createElementNS(ns, 'path');
+    prog.setAttribute('d', pathD);
+    prog.setAttribute('class', 'rm-progress');
+    svg.appendChild(prog);
 
-    const pinnedState = {};
-    const popupEls    = [];
-    const nodeGroups  = [];
+    const nodeGroups = [];
 
     nodes.forEach((pt, i) => {
-        const data = ROADMAP_DATA[i];
-        const isRight = pt.side === 'right';
+        const data   = ROADMAP_DATA[i];
+        const isLeft = pt.x < VW / 2;
 
-        const g = document.createElementNS(svgNS, 'g');
+        // 노드 그룹
+        const g = document.createElementNS(ns, 'g');
         g.setAttribute('class', 'rm-node-g');
-        g.style.cursor = 'none';
+        g.setAttribute('tabindex', '0');
+        g.setAttribute('role', 'button');
+        g.setAttribute('aria-label', `${data.step}: ${data.title}`);
 
-        const ring = document.createElementNS(svgNS, 'circle');
+        // 히트 영역
+        const hit = document.createElementNS(ns, 'circle');
+        hit.setAttribute('cx', pt.x); hit.setAttribute('cy', pt.y);
+        hit.setAttribute('r', '24'); hit.setAttribute('fill', 'transparent');
+        g.appendChild(hit);
+
+        // 외부 링
+        const ring = document.createElementNS(ns, 'circle');
         ring.setAttribute('cx', pt.x); ring.setAttribute('cy', pt.y);
-        ring.setAttribute('r', '18');
-        ring.setAttribute('class', 'rm-ring');
+        ring.setAttribute('r', '13'); ring.setAttribute('class', 'rm-ring');
         g.appendChild(ring);
 
-        const dot = document.createElementNS(svgNS, 'circle');
+        // 내부 점
+        const dot = document.createElementNS(ns, 'circle');
         dot.setAttribute('cx', pt.x); dot.setAttribute('cy', pt.y);
-        dot.setAttribute('r', '7');
-        dot.setAttribute('class', 'rm-dot');
+        dot.setAttribute('r', '4.5'); dot.setAttribute('class', 'rm-dot');
         g.appendChild(dot);
 
         svg.appendChild(g);
-        nodeGroups.push(g);
-
-        // 팝업 (foreignObject)
-        const popW = 240, popH = 160;
-        const rawPopX = isRight ? pt.x + 28 : pt.x - popW - 28;
-        const rawPopY = pt.y - popH / 2;
-        const popX = Math.max(4, Math.min(W - popW - 4, rawPopX));
-        const popY = Math.max(4, rawPopY);
-
-        const fo = document.createElementNS(svgNS, 'foreignObject');
-        fo.setAttribute('x', popX);
-        fo.setAttribute('y', popY);
-        fo.setAttribute('width', popW);
-        fo.setAttribute('height', popH + 50);
-        fo.setAttribute('class', 'rm-popup-fo');
-        fo.style.overflow = 'visible';
-        fo.style.opacity  = '0';
-        fo.style.pointerEvents = 'none';
-        fo.style.transition = 'opacity 0.22s ease';
-        fo.style.zIndex = '999';
-
-        const popDiv = document.createElement('div');
-        popDiv.className = 'rm-popup';
-        popDiv.innerHTML = `
-            <button class="rm-popup-close" aria-label="닫기">✕</button>
-            <p class="rm-popup-step">${data.step}</p>
-            <h3 class="rm-popup-title">${data.title}</h3>
-            <p class="rm-popup-body">${data.body}</p>`;
-        fo.appendChild(popDiv);
-        svg.appendChild(fo);
-        popupEls.push(fo);
+        nodeGroups.push({ g, ring, dot });
 
         // 레이블
-        const labelX = isRight ? pt.x + 30 : pt.x - 30;
-        const anchor = isRight ? 'start' : 'end';
+        const lx     = isLeft ? pt.x + 20 : pt.x - 20;
+        const anchor = isLeft ? 'start'   : 'end';
 
-        const stepTxt = document.createElementNS(svgNS, 'text');
-        stepTxt.setAttribute('x', labelX); stepTxt.setAttribute('y', pt.y - 16);
-        stepTxt.setAttribute('text-anchor', anchor);
-        stepTxt.setAttribute('class', 'rm-label-step');
-        stepTxt.textContent = data.step;
-        svg.appendChild(stepTxt);
+        const stepT = document.createElementNS(ns, 'text');
+        stepT.setAttribute('x', lx); stepT.setAttribute('y', pt.y - 9);
+        stepT.setAttribute('text-anchor', anchor);
+        stepT.setAttribute('class', 'rm-label-step');
+        stepT.textContent = data.step;
+        svg.appendChild(stepT);
 
-        const titleTxt = document.createElementNS(svgNS, 'text');
-        titleTxt.setAttribute('x', labelX); titleTxt.setAttribute('y', pt.y + 4);
-        titleTxt.setAttribute('text-anchor', anchor);
-        titleTxt.setAttribute('class', 'rm-label-title');
-        titleTxt.textContent = data.title;
-        svg.appendChild(titleTxt);
+        const titleT = document.createElementNS(ns, 'text');
+        titleT.setAttribute('x', lx); titleT.setAttribute('y', pt.y + 6);
+        titleT.setAttribute('text-anchor', anchor);
+        titleT.setAttribute('class', 'rm-label-title');
+        titleT.textContent = data.title;
+        svg.appendChild(titleT);
 
         // 인터랙션
         let hoverTimer;
-        pinnedState[i] = false;
 
-        const showPopup = () => {
-            clearTimeout(hoverTimer);
-            fo.style.opacity = '1';
-            fo.style.pointerEvents = 'auto';
+        const activate = () => {
             ring.classList.add('rm-ring--active');
             dot.classList.add('rm-dot--active');
+            showSide(data);
         };
-        const hidePopup = () => {
-            if (pinnedState[i]) return;
-            fo.style.opacity = '0';
-            fo.style.pointerEvents = 'none';
-            ring.classList.remove('rm-ring--active');
-            dot.classList.remove('rm-dot--active');
-        };
-        const closePopup = () => {
-            pinnedState[i] = false;
-            fo.style.opacity = '0';
-            fo.style.pointerEvents = 'none';
+        const deactivate = () => {
             ring.classList.remove('rm-ring--active', 'rm-ring--pinned');
             dot.classList.remove('rm-dot--active');
         };
 
-        g.addEventListener('mouseenter', showPopup);
-        g.addEventListener('mouseleave', () => { hoverTimer = setTimeout(hidePopup, 180); });
-        popDiv.addEventListener('mouseenter', () => clearTimeout(hoverTimer));
-        popDiv.addEventListener('mouseleave', () => { hoverTimer = setTimeout(hidePopup, 180); });
+        g.addEventListener('mouseenter', () => {
+            clearTimeout(hoverTimer);
+            activate();
+        });
+        g.addEventListener('mouseleave', () => {
+            hoverTimer = setTimeout(() => {
+                if (state.pinned !== i) { deactivate(); hideSide(); }
+            }, 200);
+        });
 
         g.addEventListener('click', (e) => {
             e.stopPropagation();
-            if (pinnedState[i]) {
-                closePopup();
+            if (state.pinned === i) {
+                // 핀 해제
+                state.pinned = -1;
+                deactivate();
+                hideSide();
             } else {
-                pinnedState[i] = true;
-                showPopup();
+                // 다른 핀 해제 후 현재 핀
+                nodeGroups.forEach(({ ring: r, dot: d }, j) => {
+                    if (j !== i) {
+                        r.classList.remove('rm-ring--active', 'rm-ring--pinned');
+                        d.classList.remove('rm-dot--active');
+                    }
+                });
+                state.pinned = i;
+                activate();
                 ring.classList.add('rm-ring--pinned');
             }
         });
-
-        const closeBtn = popDiv.querySelector('.rm-popup-close');
-        if (closeBtn) closeBtn.addEventListener('click', (e) => { e.stopPropagation(); closePopup(); });
-
-        document.addEventListener('keydown', e => { if (e.key === 'Escape' && pinnedState[i]) closePopup(); });
     });
 
-    document.addEventListener('click', e => {
-        if (!e.target.closest('.rm-node-g') && !e.target.closest('.rm-popup')) {
-            nodes.forEach((_, i) => {
-                if (pinnedState[i]) {
-                    pinnedState[i] = false;
-                    popupEls[i].style.opacity = '0';
-                    popupEls[i].style.pointerEvents = 'none';
-                    nodeGroups[i]?.querySelector('.rm-ring')?.classList.remove('rm-ring--active','rm-ring--pinned');
-                    nodeGroups[i]?.querySelector('.rm-dot')?.classList.remove('rm-dot--active');
-                }
-            });
+    // 외부 클릭 → 핀 해제
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.rm-node-g')) {
+            if (state.pinned !== -1) {
+                const { ring: r, dot: d } = nodeGroups[state.pinned];
+                r.classList.remove('rm-ring--active', 'rm-ring--pinned');
+                d.classList.remove('rm-dot--active');
+                state.pinned = -1;
+                hideSide();
+            }
         }
     });
 
-    wrap.appendChild(svg);
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && state.pinned !== -1) {
+            const { ring: r, dot: d } = nodeGroups[state.pinned];
+            r.classList.remove('rm-ring--active', 'rm-ring--pinned');
+            d.classList.remove('rm-dot--active');
+            state.pinned = -1;
+            hideSide();
+        }
+    });
+
+    svgWrap.appendChild(svg);
 };
 
 /* ════════════════════════════════════════
