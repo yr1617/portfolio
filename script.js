@@ -266,11 +266,10 @@ const setupTarotCards = () => {
     const oldHint = section.querySelector('.tarot-hint');
     if (oldHint) oldHint.remove();
 
-    // 힌트 텍스트
- // 힌트 텍스트
+    // 힌트 텍스트 (글자 완벽하게 비움)
     const hint = document.createElement('p');
     hint.className = 'scatter-hint';
-    hint.textContent = ''; // ◀ 따옴표 안을 그냥 이렇게 깔끔하게 비워버리세요!
+    hint.textContent = '';
     section.appendChild(hint);
 
     // 산포 컨테이너
@@ -289,7 +288,7 @@ const setupTarotCards = () => {
         }));
     };
 
-   STRENGTH_DATA.forEach((item, i) => {
+    STRENGTH_DATA.forEach((item, i) => {
         const layout = getScaledLayout()[i];
 
         const card = document.createElement('div');
@@ -302,7 +301,11 @@ const setupTarotCards = () => {
         card.style.left = `calc(50% + ${offsets[i] || 0}px)`;
         card.style.top = '40%';
         card.style.transform = `translate(-50%, -50%) rotate(${rotations[i] || 0}deg)`;
+        card.style.setProperty('--sc-rot', `${rotations[i] || 0}deg`);
         card.style.zIndex    = String(i + 1);
+
+        const inner = document.createElement('div');
+        inner.className = 'scatter-card-inner';
 
         // 뒷면 (초기: 아이콘 + 키워드)
         const back = document.createElement('div');
@@ -356,8 +359,8 @@ const setupTarotCards = () => {
                 velX = e.clientX - lastX;
                 velY = e.clientY - lastY;
                 lastX = e.clientX; lastY = e.clientY;
-                card.style.left = `${cardStartLeft + dx}px`;
-                card.style.top  = `${cardStartTop  + dy}px`;
+                card.style.left = `calc(50% + ${offsets[i] || 0}px + ${dx}px)`;
+                card.style.top  = `calc(40% + ${dy}px)`;
             }
         };
 
@@ -367,14 +370,14 @@ const setupTarotCards = () => {
             if (dragStarted) {
                 // 관성
                 let vx = velX * 3.2, vy = velY * 3.2;
-                let cl = parseFloat(card.style.left);
-                let ct = parseFloat(card.style.top);
+                let cl = parseFloat(card.style.left) || 0;
+                let ct = parseFloat(card.style.top) || 0;
                 cancelAnimationFrame(rafId);
                 const inertia = () => {
                     vx *= 0.80; vy *= 0.80;
                     cl += vx; ct += vy;
-                    card.style.left = `${cl}px`;
-                    card.style.top  = `${ct}px`;
+                    card.style.left = `calc(50% + ${offsets[i] || 0}px + ${cl}px)`;
+                    card.style.top  = `calc(40% + ${ct}px)`;
                     if (Math.abs(vx) > 0.3 || Math.abs(vy) > 0.3) {
                         rafId = requestAnimationFrame(inertia);
                     } else {
