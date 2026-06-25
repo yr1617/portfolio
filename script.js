@@ -28,7 +28,7 @@ const pointer = {
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
 /* ════════════════════════════════════════
-    THREE.JS — 환경맵 & 모델
+    THREE.JS
 ════════════════════════════════════════ */
 const setupEnvironmentMap = (targetScene, targetRenderer) => {
     const envScene = new THREE.Scene();
@@ -173,31 +173,15 @@ const animate = () => {
 };
 
 /* ════════════════════════════════════════
-    ① NAV — 심플 앵커, 활성 표시
+    (3) NAV — 활성화 기능 완전 제거
 ════════════════════════════════════════ */
 const setupNav = () => {
-    const navLinks = document.querySelectorAll('.topnav a');
-    // 스크롤 위치로 활성 링크 업데이트 (단순 버전)
-    const updateActiveNav = () => {
-        const scrollY = window.scrollY + 120;
-        navLinks.forEach(link => {
-            link.classList.remove('is-active');
-            const href = link.getAttribute('href');
-            if (!href || !href.startsWith('#')) return;
-            const id  = href.split('#')[1];
-            const el  = document.getElementById(id);
-            if (!el) return;
-            const top = el.offsetTop;
-            const bot = top + el.offsetHeight;
-            if (scrollY >= top && scrollY < bot) link.classList.add('is-active');
-        });
-    };
-    window.addEventListener('scroll', updateActiveNav, { passive: true });
-    updateActiveNav();
+    // 활성화 밑줄/is-active 클래스 동작 없음
+    // nav 링크의 data-switch-tab 처리만 유지 (탭 전환)
 };
 
 /* ════════════════════════════════════════
-    ② TAB INTERFACE
+    (4) TAB INTERFACE
 ════════════════════════════════════════ */
 let revealObserver;
 
@@ -235,145 +219,248 @@ const setupTabs = () => {
 
     tabBtns.forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
 
-    // nav 링크로 탭 전환
     document.querySelectorAll('[data-switch-tab]').forEach(link => {
         link.addEventListener('click', () => switchTab(link.dataset.switchTab));
     });
 };
 
 /* ════════════════════════════════════════
-    ③⑤ 강점 카드 뽑기 인터랙션
+    (1) 타로 카드 뒤집기 인터랙션
 ════════════════════════════════════════ */
 const STRENGTH_DATA = [
-    {
-        keyword: '차분함',
-        desc: '흥분하지 않고 상황을 먼저 파악합니다. 급박한 데드라인 상황에서도 우선순위를 정리하고 침착하게 대응해 팀의 안정을 유지합니다.'
-    },
-    {
-        keyword: '성실함',
-        desc: '작은 디테일도 끝까지 챙깁니다. 완성도를 높이기 위해 반복 수정을 마다하지 않으며, 꾸준한 루틴으로 결과물의 질을 쌓아갑니다.'
-    },
-    {
-        keyword: '유연한 사고',
-        desc: '피드백을 방어적으로 받아들이지 않습니다. 다양한 관점을 열린 자세로 수용하고, 더 나은 방향을 찾는 데 에너지를 씁니다.'
-    },
-    {
-        keyword: '사용자 중심',
-        desc: '기능보다 경험을 먼저 생각합니다. 서비스를 사용하는 사람의 맥락에서 출발해 불편함을 찾고, 자연스러운 흐름을 설계합니다.'
-    },
-    {
-        keyword: '친절한 소통',
-        desc: '협업 과정에서 갈등을 최소화하는 커뮤니케이션 방식을 추구합니다. 의견 충돌 시에도 상대방의 의도를 먼저 이해하려 노력합니다.'
-    }
+    { keyword: '차분함',    desc: '흥분하지 않고 상황을 먼저 파악합니다. 급박한 데드라인 상황에서도 우선순위를 정리하고 침착하게 대응해 팀의 안정을 유지합니다.' },
+    { keyword: '성실함',    desc: '작은 디테일도 끝까지 챙깁니다. 완성도를 높이기 위해 반복 수정을 마다하지 않으며, 꾸준한 루틴으로 결과물의 질을 쌓아갑니다.' },
+    { keyword: '유연한 사고', desc: '피드백을 방어적으로 받아들이지 않습니다. 다양한 관점을 열린 자세로 수용하고, 더 나은 방향을 찾는 데 에너지를 씁니다.' },
+    { keyword: '사용자 중심', desc: '기능보다 경험을 먼저 생각합니다. 서비스를 사용하는 사람의 맥락에서 출발해 불편함을 찾고, 자연스러운 흐름을 설계합니다.' },
+    { keyword: '친절한 소통', desc: '협업 과정에서 갈등을 최소화하는 커뮤니케이션 방식을 추구합니다. 의견 충돌 시에도 상대방의 의도를 먼저 이해하려 노력합니다.' }
 ];
 
-const setupStrengthCards = () => {
-    const deck   = document.getElementById('strength-deck');
-    const detBox = document.getElementById('strength-detail-box');
-    if (!deck || !detBox) return;
+const TAROT_SYMBOLS = ['✦', '◈', '⬡', '✧', '◇'];
+const FAN_ROTS  = [-16, -8, 0, 8, 16];   // 부채꼴 각도
+const FAN_TX    = [-10, -5, 0, 5, 10];   // 미세 X 오프셋
 
-    let activeIdx = -1;
+const setupTarotCards = () => {
+    const deck        = document.getElementById('tarot-deck');
+    const revealArea  = document.getElementById('tarot-reveal-area');
+    const placeholder = document.getElementById('tarot-placeholder');
+    if (!deck || !revealArea) return;
+
+    const cardWraps = [];
 
     STRENGTH_DATA.forEach((item, i) => {
-        const card = document.createElement('div');
-        card.className = 's-card reveal-card';
-        card.setAttribute('tabindex', '0');
-        card.setAttribute('role', 'button');
-        card.setAttribute('aria-label', item.keyword);
-        card.dataset.idx = i;
-        card.innerHTML = `<span class="s-card-keyword">${item.keyword}</span>`;
-        deck.appendChild(card);
+        // 래퍼
+        const wrap = document.createElement('div');
+        wrap.className = 'tarot-card-wrap';
+        wrap.style.setProperty('--fan-rot', `${FAN_ROTS[i]}deg`);
+        wrap.style.setProperty('--fan-tx',  `${FAN_TX[i]}px`);
+        wrap.style.setProperty('--fan-z',   String(i + 1));
+        wrap.setAttribute('tabindex', '0');
+        wrap.setAttribute('role', 'button');
+        wrap.setAttribute('aria-label', `강점 카드 ${i+1}: ${item.keyword}`);
 
-        const activate = () => {
-            if (activeIdx === i) return;
-            // 이전 활성 해제
-            deck.querySelectorAll('.s-card').forEach(c => c.classList.remove('is-active'));
-            card.classList.add('is-active');
-            activeIdx = i;
+        // 내부 3D 컨테이너
+        const inner = document.createElement('div');
+        inner.className = 'tarot-card-inner';
 
-            // 상세 박스 채우기
-            detBox.classList.add('has-content');
-            detBox.innerHTML = `
-                <p class="strength-detail-keyword">${item.keyword}</p>
-                <p class="strength-detail-desc">${item.desc}</p>
-            `;
+        // 뒷면
+        const back = document.createElement('div');
+        back.className = 'tarot-face tarot-back';
+        back.innerHTML = `
+            <div class="tarot-back-pattern">
+                <span class="tarot-back-symbol">${TAROT_SYMBOLS[i]}</span>
+            </div>`;
+
+        // 앞면
+        const front = document.createElement('div');
+        front.className = 'tarot-face tarot-front';
+        front.innerHTML = `
+            <span class="tarot-front-num">${String(i+1).padStart(2,'0')}</span>
+            <span class="tarot-front-keyword">${item.keyword}</span>
+            <span class="tarot-front-deco">${TAROT_SYMBOLS[i]}</span>`;
+
+        inner.appendChild(back);
+        inner.appendChild(front);
+        wrap.appendChild(inner);
+        deck.appendChild(wrap);
+        cardWraps.push(wrap);
+
+        // 클릭 핸들러
+        const handleClick = () => {
+            if (wrap.classList.contains('is-flipped')) return;
+
+            // 1) 플립 애니메이션
+            wrap.classList.add('is-flipping');
+
+            // 2) 이미 뒤집힌 카드 접기
+            cardWraps.forEach((w, j) => {
+                if (j !== i && w.classList.contains('is-flipping')) {
+                    w.classList.remove('is-flipping');
+                }
+                w.classList.toggle('is-flipped', j !== i && w.classList.contains('is-flipping'));
+            });
+
+            // 3) 공개 영역 업데이트 (딜레이로 flip 중간 시점)
+            setTimeout(() => {
+                if (placeholder) placeholder.style.display = 'none';
+
+                // 기존 revealed 제거
+                revealArea.querySelectorAll('.tarot-revealed').forEach(el => el.remove());
+
+                const revealed = document.createElement('div');
+                revealed.className = 'tarot-revealed';
+                revealed.innerHTML = `
+                    <p class="revealed-num">STRENGTH ${String(i+1).padStart(2,'0')}</p>
+                    <p class="revealed-keyword">${item.keyword}</p>
+                    <p class="revealed-desc">${item.desc}</p>`;
+                revealArea.appendChild(revealed);
+            }, 320);
         };
 
-        card.addEventListener('click', activate);
-        card.addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' ') activate(); });
+        wrap.addEventListener('click', handleClick);
+        wrap.addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' ') handleClick(); });
     });
 };
 
 /* ════════════════════════════════════════
-    ④ 로드맵 인터랙션
+    (5) 세로형 타임라인
 ════════════════════════════════════════ */
 const ROADMAP_DATA = [
     {
-        step: 'STEP 01',
-        title: '마이스터고 선택',
-        body: '막연하게 "예쁜 것을 만들고 싶다"는 생각에서 출발해 미림마이스터고를 선택했습니다. 이론보다 실무를 직접 부딪혀 배우는 환경을 원했고, UI·UX 디자이너가 되겠다는 목표를 구체화했습니다. IT 서비스·스타트업 분야에서 사용자 경험을 설계하는 것이 저의 희망 직무입니다.'
+        step: 'STEP 01', title: '마이스터고 선택',
+        body: '막연하게 "예쁜 것을 만들고 싶다"는 생각에서 출발해 미림마이스터고를 선택했습니다. 이론보다 실무를 직접 부딪혀 배우는 환경을 원했고, UI·UX 디자이너가 되겠다는 목표를 구체화했습니다.'
     },
     {
-        step: 'STEP 02',
-        title: '디자인 기본기 학습',
-        body: '피그마의 기본 도형조차 어색했던 입학 초기부터 브랜딩, 포스터, GUI 아이콘, 디자인 시스템까지 차근차근 쌓아 왔습니다. 교과 프로젝트마다 반복 수정과 피드백을 통해 디테일을 다루는 감각을 키웠습니다.'
+        step: 'STEP 02', title: '디자인 기본기 학습',
+        body: '피그마의 기본 도형조차 어색했던 입학 초기부터 브랜딩, 포스터, GUI 아이콘, 디자인 시스템까지 차근차근 쌓아 왔습니다. 반복 수정과 피드백을 통해 디테일 감각을 키웠습니다.'
     },
     {
-        step: 'STEP 03',
-        title: '서비스 기획 및 협업 경험',
-        body: '급식 패스, 투데인트(미림 해커톤) 등 팀 프로젝트를 통해 서비스 플로우 설계부터 UI 제작까지 전 과정을 경험했습니다. 밤샘 작업 속에서도 부드러운 소통으로 협업 분위기를 유지하는 법을 배웠습니다.'
+        step: 'STEP 03', title: '서비스 기획 및 협업 경험',
+        body: '급식 패스, 투데인트(미림 해커톤) 등 팀 프로젝트를 통해 서비스 플로우 설계부터 UI 제작까지 전 과정을 경험했습니다. 부드러운 소통으로 협업 분위기를 유지하는 법을 배웠습니다.'
     },
     {
-        step: 'STEP 04',
-        title: 'AI 활용 & 앞으로의 목표',
-        body: 'AI ESG 교육 이수를 통해 AI 도구를 디자인 워크플로에 접목하는 방법을 탐색했습니다. 단기적으로는 피그마 스킬과 프로토타이핑 역량을 강화하고, 중장기적으로는 리서치부터 출시까지 전 과정을 주도하는 프로덕트 디자이너로 성장하는 것이 목표입니다.'
+        step: 'STEP 04', title: 'AI 활용 & 앞으로의 목표',
+        body: 'AI ESG 교육 이수를 통해 AI 도구를 디자인 워크플로에 접목하는 방법을 탐색했습니다. 단기적으로는 피그마 스킬 강화, 중장기적으로는 프로덕트 디자이너로 성장하는 것이 목표입니다.'
     }
 ];
 
-const setupRoadmap = () => {
-    const nodes   = document.querySelectorAll('.road-node');
-    const popup   = document.getElementById('roadmap-popup');
-    const pClose  = document.getElementById('roadmap-popup-close');
-    const pStep   = document.getElementById('roadmap-popup-step');
-    const pTitle  = document.getElementById('roadmap-popup-title');
-    const pBody   = document.getElementById('roadmap-popup-body');
-    if (!nodes.length || !popup) return;
+const setupTimeline = () => {
+    const wrap = document.getElementById('timeline-wrap');
+    if (!wrap) return;
 
-    let activeNode = null;
+    ROADMAP_DATA.forEach((data, i) => {
+        const isOdd  = i % 2 === 0;     // 0, 2번: 텍스트 왼쪽
+        const item   = document.createElement('div');
+        item.className = `tl-item ${isOdd ? 'odd' : 'even'}`;
 
-    const openPopup = (node, idx) => {
-        const data = ROADMAP_DATA[idx];
-        if (!data) return;
-        nodes.forEach(n => n.classList.remove('is-active'));
-        node.classList.add('is-active');
-        activeNode = node;
+        // 툴팁
+        const tooltip = document.createElement('div');
+        tooltip.className = 'tl-tooltip';
+        tooltip.innerHTML = `
+            <button class="tl-tooltip-close" aria-label="닫기">✕</button>
+            <p class="tl-tooltip-step">${data.step}</p>
+            <h3 class="tl-tooltip-title">${data.title}</h3>
+            <p class="tl-tooltip-body">${data.body}</p>`;
 
-        pStep.textContent  = data.step;
-        pTitle.textContent = data.title;
-        pBody.textContent  = data.body;
-        popup.classList.add('is-open');
-    };
+        // 노드 컬럼
+        const nodeCol = document.createElement('div');
+        nodeCol.className = 'tl-node-col';
+        const node = document.createElement('button');
+        node.className = 'tl-node';
+        node.innerHTML = `<span class="tl-node-num">${i+1}</span>`;
+        node.setAttribute('aria-label', `${data.step}: ${data.title}`);
+        node.setAttribute('type', 'button');
+        nodeCol.appendChild(node);
+        nodeCol.appendChild(tooltip);
 
-    const closePopup = () => {
-        popup.classList.remove('is-open');
-        if (activeNode) { activeNode.classList.remove('is-active'); activeNode = null; }
-    };
+        // 텍스트 블록
+        const textBlock = document.createElement('div');
+        textBlock.className = isOdd ? 'tl-text-left' : 'tl-text-right';
+        textBlock.innerHTML = `
+            <p class="tl-step-label">${data.step}</p>
+            <h3 class="tl-title">${data.title}</h3>`;
 
-    nodes.forEach(node => {
-        const idx = parseInt(node.dataset.step, 10);
-        node.addEventListener('click', () => {
-            if (node === activeNode) { closePopup(); return; }
-            openPopup(node, idx);
-        });
-        node.addEventListener('mouseenter', () => openPopup(node, idx));
+        const empty = document.createElement('div');
+        empty.className = 'tl-empty';
+
+        if (isOdd) {
+            item.appendChild(textBlock);
+            item.appendChild(nodeCol);
+            item.appendChild(empty);
+        } else {
+            item.appendChild(empty);
+            item.appendChild(nodeCol);
+            item.appendChild(textBlock);
+        }
+
+        wrap.appendChild(item);
+
+        // ── 인터랙션 ──
+        let pinned = false;
+        let hoverTimer;
+
+        const showTooltip = () => {
+            clearTimeout(hoverTimer);
+            tooltip.classList.add('is-visible');
+            node.classList.add('is-hover');
+            item.classList.add('is-active');
+        };
+        const hideTooltip = () => {
+            if (pinned) return;
+            tooltip.classList.remove('is-visible');
+            node.classList.remove('is-hover');
+            item.classList.remove('is-active');
+        };
+        const closeTooltip = () => {
+            pinned = false;
+            tooltip.classList.remove('is-visible');
+            node.classList.remove('is-hover', 'is-pinned');
+            item.classList.remove('is-active');
+        };
+
+        // 호버
+        node.addEventListener('mouseenter', showTooltip);
         node.addEventListener('mouseleave', () => {
-            // 팝업이 열려있으면 클릭으로 고정된 것이므로 유지
+            hoverTimer = setTimeout(hideTooltip, 160);
+        });
+        tooltip.addEventListener('mouseenter', () => {
+            clearTimeout(hoverTimer);
+            tooltip.classList.add('is-visible');
+        });
+        tooltip.addEventListener('mouseleave', () => {
+            hoverTimer = setTimeout(hideTooltip, 160);
+        });
+
+        // 클릭: 고정/해제
+        node.addEventListener('click', () => {
+            if (pinned) {
+                closeTooltip();
+            } else {
+                pinned = true;
+                showTooltip();
+                node.classList.add('is-pinned');
+            }
+        });
+
+        // ✕ 닫기
+        const closeBtn = tooltip.querySelector('.tl-tooltip-close');
+        if (closeBtn) closeBtn.addEventListener('click', closeTooltip);
+
+        // ESC
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape' && pinned) closeTooltip();
         });
     });
 
-    if (pClose) pClose.addEventListener('click', closePopup);
-    document.addEventListener('keydown', e => {
-        if (e.key === 'Escape' && popup.classList.contains('is-open')) closePopup();
+    // 외부 클릭으로 고정 해제
+    document.addEventListener('click', e => {
+        if (!e.target.closest('.tl-node') && !e.target.closest('.tl-tooltip')) {
+            wrap.querySelectorAll('.tl-node.is-pinned').forEach(n => {
+                n.classList.remove('is-hover','is-pinned');
+                const tt = n.parentElement.querySelector('.tl-tooltip');
+                if (tt) tt.classList.remove('is-visible');
+                n.closest('.tl-item')?.classList.remove('is-active');
+            });
+        }
     });
 };
 
@@ -381,21 +468,18 @@ const setupRoadmap = () => {
     폴더 GUI
 ════════════════════════════════════════ */
 const FOLDER_DATA = {
-    academic: {
-        title:'교과 프로젝트 경험', path:'~/archive/academic/',
-        items:[
-            {text:'학생 마음 건강 콘텐츠 공모전, 포스터 부문 참여',highlight:false},
-            {text:'포토샵 아트워크 & 브랜딩 굿즈 제작 프로젝트',highlight:false},
-            {text:'멜론 광고 영상 제작 프로젝트 [공유하는 마음]',highlight:false},
-            {text:'맛집 지도 서비스 제작 프로젝트 [MZ]',highlight:true},
-            {text:'그래픽 포스터 제작 프로젝트 [모디곰 BI 포스터]',highlight:true},
-            {text:'학교 아이덴티티 반영 패턴디자인 제작 프로젝트',highlight:false},
-            {text:'흥부전 픽토그램 디자인 프로젝트',highlight:false},
-            {text:'GUI 스타일별 아이콘 제작 프로젝트',highlight:true},
-            {text:'OTT 서비스 디자인 시스템 컴포넌트 및 디자인 시스템 제작 프로젝트',highlight:true},
-            {text:'패션 종합 어플리케이션 [MFF] 창업 계획서 작성 프로젝트',highlight:false},
-        ]
-    },
+    academic:{title:'교과 프로젝트 경험',path:'~/archive/academic/',items:[
+        {text:'학생 마음 건강 콘텐츠 공모전, 포스터 부문 참여',highlight:false},
+        {text:'포토샵 아트워크 & 브랜딩 굿즈 제작 프로젝트',highlight:false},
+        {text:'멜론 광고 영상 제작 프로젝트 [공유하는 마음]',highlight:false},
+        {text:'맛집 지도 서비스 제작 프로젝트 [MZ]',highlight:true},
+        {text:'그래픽 포스터 제작 프로젝트 [모디곰 BI 포스터]',highlight:true},
+        {text:'학교 아이덴티티 반영 패턴디자인 제작 프로젝트',highlight:false},
+        {text:'흥부전 픽토그램 디자인 프로젝트',highlight:false},
+        {text:'GUI 스타일별 아이콘 제작 프로젝트',highlight:true},
+        {text:'OTT 서비스 디자인 시스템 컴포넌트 및 디자인 시스템 제작 프로젝트',highlight:true},
+        {text:'패션 종합 어플리케이션 [MFF] 창업 계획서 작성 프로젝트',highlight:false},
+    ]},
     club:{title:'교내 활동 · 동아리 활동',path:'~/archive/club/',items:[
         {text:'급식 티켓팅 서비스 제작 프로젝트 [급식 패스]',highlight:true},
         {text:'미림 해커톤 / 컬러워크 기록 서비스 제작 프로젝트 [투데인트]',highlight:true},
@@ -436,7 +520,6 @@ const setupFolderGUI = () => {
     const mPath = document.getElementById('modal-path');
     const mBody = document.getElementById('modal-body');
     if (!grid || !modal) return;
-
     let sel = null;
 
     const openModal = (key) => {
@@ -449,7 +532,7 @@ const setupFolderGUI = () => {
             li.className = 'modal-file-item'+(item.highlight?' is-highlight':'');
             const ic = document.createElement('span'); ic.className='file-icon';
             ic.textContent = item.highlight ? '★' : '›';
-            Object.assign(ic.style, {display:'inline-flex',alignItems:'center',justifyContent:'center'});
+            Object.assign(ic.style,{display:'inline-flex',alignItems:'center',justifyContent:'center'});
             const tx = document.createElement('span'); tx.textContent = item.text;
             li.append(ic, tx); ul.appendChild(li);
         });
@@ -476,45 +559,33 @@ const setupFolderGUI = () => {
 };
 
 /* ════════════════════════════════════════
-    ⑥ 프로젝트 상세 모달
+    프로젝트 상세 모달
 ════════════════════════════════════════ */
 const PROJECT_DATA = {
-    p1:{
-        img:'project1.jpg', category:'교과 프로젝트', period:'2026',
+    p1:{img:'project1.jpg',category:'교과 프로젝트',period:'2026',
         title:'그래픽 포스터 제작 프로젝트 [모디곰 BI 포스터]',
         desc:'브랜드 아이덴티티 작업의 일환으로 모디곰 캐릭터 브랜드의 BI 포스터를 제작하였습니다. 브랜드의 핵심 가치를 시각적으로 표현하고, 타입과 일러스트레이션의 조화를 통해 완성도 높은 그래픽 결과물을 도출했습니다.',
-        role:'기획 · 그래픽 디자인 · 타입 설계', tools:['Adobe Photoshop','Adobe Illustrator'],
-    },
-    p2:{
-        img:'project2.jpg', category:'교과 프로젝트', period:'2025',
+        role:'기획 · 그래픽 디자인 · 타입 설계',tools:['Adobe Photoshop','Adobe Illustrator']},
+    p2:{img:'project2.jpg',category:'교과 프로젝트',period:'2025',
         title:'맛집 지도 서비스 제작 프로젝트 [MZ]',
         desc:'사용자 주변의 맛집을 직관적으로 탐색할 수 있는 지도 기반 서비스 UI를 설계하였습니다. 사용자 인터뷰와 경쟁사 분석을 통해 핵심 기능을 정의하고, 피그마로 와이어프레임부터 고해상도 프로토타입까지 제작했습니다.',
-        role:'UX 리서치 · UI 디자인 · 프로토타이핑', tools:['Figma','FigJam'],
-    },
-    p3:{
-        img:'project3.png', category:'동아리 활동', period:'2026',
+        role:'UX 리서치 · UI 디자인 · 프로토타이핑',tools:['Figma','FigJam']},
+    p3:{img:'project3.png',category:'동아리 활동',period:'2026',
         title:'급식 티켓팅 서비스 제작 프로젝트 [급식 패스]',
         desc:'학교 급식 대기 시간을 줄이기 위한 사전 예약 서비스를 기획하고 디자인하였습니다. 팀원들과 함께 문제 정의부터 서비스 플로우 설계, UI 제작까지 전 과정을 담당했습니다.',
-        role:'서비스 기획 · UI 디자인 · 팀 협업', tools:['Figma','FigJam','Notion'],
-    },
-    p4:{
-        img:'project4.png', category:'동아리 활동 · 해커톤', period:'2025',
+        role:'서비스 기획 · UI 디자인 · 팀 협업',tools:['Figma','FigJam','Notion']},
+    p4:{img:'project4.png',category:'동아리 활동 · 해커톤',period:'2025',
         title:'컬러워크 기록 서비스 제작 프로젝트 [투데인트]',
         desc:'하루에 한 번 컬러로 감정을 기록하는 웰니스 서비스입니다. 미림 해커톤에서 팀으로 기획부터 디자인까지 완성하였으며, 감성적인 색상 기반 UX와 심플한 인터페이스를 중점적으로 설계했습니다.',
-        role:'서비스 기획 · UI/UX 디자인 · 브랜딩', tools:['Figma','FigJam'],
-    },
-    p5:{
-        img:'project5.png', category:'동아리 활동', period:'2026',
+        role:'서비스 기획 · UI/UX 디자인 · 브랜딩',tools:['Figma','FigJam']},
+    p5:{img:'project5.png',category:'동아리 활동',period:'2026',
         title:'JS 스터디 홍보 게시물 제작',
         desc:'동아리 내 JavaScript 스터디 모집을 위한 SNS 홍보 게시물을 제작하였습니다. 정보 전달의 명확성과 시각적 매력을 동시에 고려한 그래픽 디자인 결과물입니다.',
-        role:'그래픽 디자인 · 콘텐츠 제작', tools:['Adobe Photoshop','Figma'],
-    },
-    p6:{
-        img:'project6.jpg', category:'교과 프로젝트', period:'2025',
+        role:'그래픽 디자인 · 콘텐츠 제작',tools:['Adobe Photoshop','Figma']},
+    p6:{img:'project6.jpg',category:'교과 프로젝트',period:'2025',
         title:'GUI 스타일별 아이콘 제작 프로젝트',
         desc:'Flat, Neumorphism, Glassmorphism, 3D 등 다양한 GUI 스타일을 분석하고, 각 스타일에 맞는 아이콘 세트를 직접 제작하였습니다.',
-        role:'UI 디자인 · 아이콘 디자인', tools:['Figma','Adobe Illustrator'],
-    },
+        role:'UI 디자인 · 아이콘 디자인',tools:['Figma','Adobe Illustrator']},
 };
 
 const setupProjectModal = () => {
@@ -597,8 +668,8 @@ window.addEventListener('scroll', () => {
 window.onload = () => {
     setupNav();
     setupTabs();
-    setupStrengthCards();
-    setupRoadmap();
+    setupTarotCards();    // (1) 타로 카드
+    setupTimeline();      // (5) 세로 타임라인
     setupFolderGUI();
     setupProjectModal();
     setupReveal();
