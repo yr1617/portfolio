@@ -215,6 +215,13 @@ const setupTabs = () => {
                 p.style.display = '';
             }
         });
+        // (6) 탭 전환 시 최상단으로 즉시 스크롤
+        const tabRoot = document.getElementById('tab-root');
+        if (tabRoot) {
+            tabRoot.scrollIntoView({ behavior: 'instant', block: 'start' });
+        } else {
+            window.scrollTo({ top: 0, behavior: 'instant' });
+        }
     };
 
     tabBtns.forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
@@ -225,104 +232,150 @@ const setupTabs = () => {
 };
 
 /* ════════════════════════════════════════
-    (1) 타로 카드 뒤집기 인터랙션
+    (2) 업무 시 나의 강점 — 산포형 드래그+3D플립 카드
 ════════════════════════════════════════ */
 const STRENGTH_DATA = [
-    { keyword: '차분함',    desc: '흥분하지 않고 상황을 먼저 파악합니다. 급박한 데드라인 상황에서도 우선순위를 정리하고 침착하게 대응해 팀의 안정을 유지합니다.' },
-    { keyword: '성실함',    desc: '작은 디테일도 끝까지 챙깁니다. 완성도를 높이기 위해 반복 수정을 마다하지 않으며, 꾸준한 루틴으로 결과물의 질을 쌓아갑니다.' },
-    { keyword: '유연한 사고', desc: '피드백을 방어적으로 받아들이지 않습니다. 다양한 관점을 열린 자세로 수용하고, 더 나은 방향을 찾는 데 에너지를 씁니다.' },
-    { keyword: '사용자 중심', desc: '기능보다 경험을 먼저 생각합니다. 서비스를 사용하는 사람의 맥락에서 출발해 불편함을 찾고, 자연스러운 흐름을 설계합니다.' },
-    { keyword: '친절한 소통', desc: '협업 과정에서 갈등을 최소화하는 커뮤니케이션 방식을 추구합니다. 의견 충돌 시에도 상대방의 의도를 먼저 이해하려 노력합니다.' }
+    { keyword: '차분함',    icon: '◈', desc: '흥분하지 않고 상황을 먼저 파악합니다. 급박한 데드라인 상황에서도 우선순위를 정리하고 침착하게 대응해 팀의 안정을 유지합니다.' },
+    { keyword: '성실함',    icon: '✦', desc: '작은 디테일도 끝까지 챙깁니다. 완성도를 높이기 위해 반복 수정을 마다하지 않으며, 꾸준한 루틴으로 결과물의 질을 쌓아갑니다.' },
+    { keyword: '유연한 사고', icon: '⬡', desc: '피드백을 방어적으로 받아들이지 않습니다. 다양한 관점을 열린 자세로 수용하고, 더 나은 방향을 찾는 데 에너지를 씁니다.' },
+    { keyword: '사용자 중심', icon: '✧', desc: '기능보다 경험을 먼저 생각합니다. 서비스를 사용하는 사람의 맥락에서 출발해 불편함을 찾고, 자연스러운 흐름을 설계합니다.' },
+    { keyword: '친절한 소통', icon: '◇', desc: '협업 과정에서 갈등을 최소화하는 커뮤니케이션 방식을 추구합니다. 의견 충돌 시에도 상대방의 의도를 먼저 이해하려 노력합니다.' }
 ];
 
-const TAROT_SYMBOLS = ['✦', '◈', '⬡', '✧', '◇'];
-const FAN_ROTS  = [-16, -8, 0, 8, 16];   // 부채꼴 각도
-const FAN_TX    = [-10, -5, 0, 5, 10];   // 미세 X 오프셋
+// 초기 산포 레이아웃 (각 카드의 위치 및 회전)
+const SCATTER_LAYOUT = [
+    { x:  60, y:  40, rot: -12 },
+    { x: 200, y:  20, rot:   5 },
+    { x: 340, y:  50, rot:  15 },
+    { x: 100, y: 180, rot:  -6 },
+    { x: 260, y: 160, rot:   9 },
+];
 
 const setupTarotCards = () => {
-    const deck        = document.getElementById('tarot-deck');
-    const revealArea  = document.getElementById('tarot-reveal-area');
-    const placeholder = document.getElementById('tarot-placeholder');
-    if (!deck || !revealArea) return;
+    const section = document.getElementById('strengths');
+    if (!section) return;
 
-    const cardWraps = [];
+    // 기존 tarot-wrap 제거 후 새 컨테이너 생성
+    const oldWrap = section.querySelector('.tarot-wrap');
+    if (oldWrap) oldWrap.remove();
+    const oldHint = section.querySelector('.tarot-hint');
+    if (oldHint) oldHint.remove();
+
+    // 산포 영역 컨테이너
+    const scatter = document.createElement('div');
+    scatter.className = 'scatter-wrap';
+    section.appendChild(scatter);
 
     STRENGTH_DATA.forEach((item, i) => {
-        // 래퍼
-        const wrap = document.createElement('div');
-        wrap.className = 'tarot-card-wrap';
-        wrap.style.setProperty('--fan-rot', `${FAN_ROTS[i]}deg`);
-        wrap.style.setProperty('--fan-tx',  `${FAN_TX[i]}px`);
-        wrap.style.setProperty('--fan-z',   String(i + 1));
-        wrap.setAttribute('tabindex', '0');
-        wrap.setAttribute('role', 'button');
-        wrap.setAttribute('aria-label', `강점 카드 ${i+1}: ${item.keyword}`);
+        const layout = SCATTER_LAYOUT[i];
 
-        // 내부 3D 컨테이너
+        const card = document.createElement('div');
+        card.className = 'scatter-card';
+        card.style.setProperty('--sc-x',   `${layout.x}px`);
+        card.style.setProperty('--sc-y',   `${layout.y}px`);
+        card.style.setProperty('--sc-rot', `${layout.rot}deg`);
+        card.style.setProperty('--sc-z',   String(i + 1));
+        card.style.left      = `${layout.x}px`;
+        card.style.top       = `${layout.y}px`;
+        card.style.transform = `rotate(${layout.rot}deg)`;
+        card.style.zIndex    = String(i + 1);
+
         const inner = document.createElement('div');
-        inner.className = 'tarot-card-inner';
+        inner.className = 'scatter-card-inner';
 
-        // 뒷면
+        // 뒷면 (초기 노출면: 아이콘 + 키워드)
         const back = document.createElement('div');
-        back.className = 'tarot-face tarot-back';
+        back.className = 'scatter-face scatter-back';
         back.innerHTML = `
-            <div class="tarot-back-pattern">
-                <span class="tarot-back-symbol">${TAROT_SYMBOLS[i]}</span>
-            </div>`;
+            <span class="sc-icon">${item.icon}</span>
+            <span class="sc-keyword">${item.keyword}</span>`;
 
-        // 앞면
+        // 앞면 (뒤집혔을 때: 키워드 + 설명)
         const front = document.createElement('div');
-        front.className = 'tarot-face tarot-front';
+        front.className = 'scatter-face scatter-front';
         front.innerHTML = `
-            <span class="tarot-front-num">${String(i+1).padStart(2,'0')}</span>
-            <span class="tarot-front-keyword">${item.keyword}</span>
-            <span class="tarot-front-deco">${TAROT_SYMBOLS[i]}</span>`;
+            <span class="sc-icon-sm">${item.icon}</span>
+            <span class="sc-keyword-front">${item.keyword}</span>
+            <p class="sc-desc">${item.desc}</p>`;
 
         inner.appendChild(back);
         inner.appendChild(front);
-        wrap.appendChild(inner);
-        deck.appendChild(wrap);
-        cardWraps.push(wrap);
+        card.appendChild(inner);
+        scatter.appendChild(card);
 
-        // 클릭 핸들러
-        const handleClick = () => {
-            if (wrap.classList.contains('is-flipped')) return;
+        // ── 드래그 ──
+        let isDragging = false;
+        let dragStarted = false;
+        let startX, startY, cardStartLeft, cardStartTop;
+        let velX = 0, velY = 0, lastX, lastY;
+        let rafId;
 
-            // 1) 플립 애니메이션
-            wrap.classList.add('is-flipping');
+        card.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return;
+            isDragging = true;
+            dragStarted = false;
+            startX = e.clientX;
+            startY = e.clientY;
+            cardStartLeft = parseFloat(card.style.left) || 0;
+            cardStartTop  = parseFloat(card.style.top)  || 0;
+            lastX = e.clientX;
+            lastY = e.clientY;
+            velX = 0; velY = 0;
+            card.style.zIndex = '100';
+            card.style.transition = 'none';
+            e.preventDefault();
+        });
 
-            // 2) 이미 뒤집힌 카드 접기
-            cardWraps.forEach((w, j) => {
-                if (j !== i && w.classList.contains('is-flipping')) {
-                    w.classList.remove('is-flipping');
-                }
-                w.classList.toggle('is-flipped', j !== i && w.classList.contains('is-flipping'));
-            });
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            if (!dragStarted && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) {
+                dragStarted = true;
+            }
+            if (dragStarted) {
+                velX = e.clientX - lastX;
+                velY = e.clientY - lastY;
+                lastX = e.clientX;
+                lastY = e.clientY;
+                card.style.left = `${cardStartLeft + dx}px`;
+                card.style.top  = `${cardStartTop  + dy}px`;
+            }
+        });
 
-            // 3) 공개 영역 업데이트 (딜레이로 flip 중간 시점)
-            setTimeout(() => {
-                if (placeholder) placeholder.style.display = 'none';
+        document.addEventListener('mouseup', (e) => {
+            if (!isDragging) return;
+            isDragging = false;
 
-                // 기존 revealed 제거
-                revealArea.querySelectorAll('.tarot-revealed').forEach(el => el.remove());
-
-                const revealed = document.createElement('div');
-                revealed.className = 'tarot-revealed';
-                revealed.innerHTML = `
-                    <p class="revealed-num">STRENGTH ${String(i+1).padStart(2,'0')}</p>
-                    <p class="revealed-keyword">${item.keyword}</p>
-                    <p class="revealed-desc">${item.desc}</p>`;
-                revealArea.appendChild(revealed);
-            }, 320);
-        };
-
-        wrap.addEventListener('click', handleClick);
-        wrap.addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' ') handleClick(); });
+            if (dragStarted) {
+                // 관성 (damped inertia) — 빠릿하게 멈추도록 조정
+                let vx = velX * 3.5, vy = velY * 3.5;
+                let curLeft = parseFloat(card.style.left);
+                let curTop  = parseFloat(card.style.top);
+                cancelAnimationFrame(rafId);
+                const inertia = () => {
+                    vx *= 0.82; vy *= 0.82;   // 강한 브레이크
+                    curLeft += vx; curTop += vy;
+                    card.style.left = `${curLeft}px`;
+                    card.style.top  = `${curTop}px`;
+                    if (Math.abs(vx) > 0.4 || Math.abs(vy) > 0.4) {
+                        rafId = requestAnimationFrame(inertia);
+                    } else {
+                        card.style.zIndex = String(i + 1);
+                    }
+                };
+                rafId = requestAnimationFrame(inertia);
+            } else {
+                // 드래그 없었으면 클릭 → 플립
+                card.style.zIndex = String(i + 10);
+                inner.classList.toggle('is-flipped');
+            }
+        });
     });
 };
 
 /* ════════════════════════════════════════
-    (5) 세로형 타임라인
+    (1) My Story — SVG 세로 S자 곡선 로드맵
 ════════════════════════════════════════ */
 const ROADMAP_DATA = [
     {
@@ -347,121 +400,179 @@ const setupTimeline = () => {
     const wrap = document.getElementById('timeline-wrap');
     if (!wrap) return;
 
-    ROADMAP_DATA.forEach((data, i) => {
-        const isOdd  = i % 2 === 0;     // 0, 2번: 텍스트 왼쪽
-        const item   = document.createElement('div');
-        item.className = `tl-item ${isOdd ? 'odd' : 'even'}`;
+    const W = 700, H = 600;
+    const nodes = [
+        { x: 180, y: 100, side: 'right' },
+        { x: 520, y: 230, side: 'left'  },
+        { x: 180, y: 370, side: 'right' },
+        { x: 520, y: 500, side: 'left'  },
+    ];
 
-        // 툴팁
-        const tooltip = document.createElement('div');
-        tooltip.className = 'tl-tooltip';
-        tooltip.innerHTML = `
-            <button class="tl-tooltip-close" aria-label="닫기">✕</button>
-            <p class="tl-tooltip-step">${data.step}</p>
-            <h3 class="tl-tooltip-title">${data.title}</h3>
-            <p class="tl-tooltip-body">${data.body}</p>`;
+    const pathD = `M ${nodes[0].x} ${nodes[0].y}
+        C ${nodes[0].x + 200} ${nodes[0].y},
+          ${nodes[1].x - 200} ${nodes[1].y},
+          ${nodes[1].x} ${nodes[1].y}
+        C ${nodes[1].x + 160} ${nodes[1].y},
+          ${nodes[2].x - 160} ${nodes[2].y},
+          ${nodes[2].x} ${nodes[2].y}
+        C ${nodes[2].x + 200} ${nodes[2].y},
+          ${nodes[3].x - 200} ${nodes[3].y},
+          ${nodes[3].x} ${nodes[3].y}`;
 
-        // 노드 컬럼
-        const nodeCol = document.createElement('div');
-        nodeCol.className = 'tl-node-col';
-        const node = document.createElement('button');
-        node.className = 'tl-node';
-        node.innerHTML = `<span class="tl-node-num">${i+1}</span>`;
-        node.setAttribute('aria-label', `${data.step}: ${data.title}`);
-        node.setAttribute('type', 'button');
-        nodeCol.appendChild(node);
-        nodeCol.appendChild(tooltip);
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('class', 'roadmap-svg-new');
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.setAttribute('xmlns', svgNS);
 
-        // 텍스트 블록
-        const textBlock = document.createElement('div');
-        textBlock.className = isOdd ? 'tl-text-left' : 'tl-text-right';
-        textBlock.innerHTML = `
-            <p class="tl-step-label">${data.step}</p>
-            <h3 class="tl-title">${data.title}</h3>`;
+    const trackPath = document.createElementNS(svgNS, 'path');
+    trackPath.setAttribute('d', pathD);
+    trackPath.setAttribute('class', 'rm-track');
+    svg.appendChild(trackPath);
 
-        const empty = document.createElement('div');
-        empty.className = 'tl-empty';
+    const progressPath = document.createElementNS(svgNS, 'path');
+    progressPath.setAttribute('d', pathD);
+    progressPath.setAttribute('class', 'rm-progress');
+    svg.appendChild(progressPath);
 
-        if (isOdd) {
-            item.appendChild(textBlock);
-            item.appendChild(nodeCol);
-            item.appendChild(empty);
-        } else {
-            item.appendChild(empty);
-            item.appendChild(nodeCol);
-            item.appendChild(textBlock);
-        }
+    const pinnedState = {};
+    const popupEls    = [];
+    const nodeGroups  = [];
 
-        wrap.appendChild(item);
+    nodes.forEach((pt, i) => {
+        const data = ROADMAP_DATA[i];
+        const isRight = pt.side === 'right';
 
-        // ── 인터랙션 ──
-        let pinned = false;
+        const g = document.createElementNS(svgNS, 'g');
+        g.setAttribute('class', 'rm-node-g');
+        g.style.cursor = 'none';
+
+        const ring = document.createElementNS(svgNS, 'circle');
+        ring.setAttribute('cx', pt.x); ring.setAttribute('cy', pt.y);
+        ring.setAttribute('r', '18');
+        ring.setAttribute('class', 'rm-ring');
+        g.appendChild(ring);
+
+        const dot = document.createElementNS(svgNS, 'circle');
+        dot.setAttribute('cx', pt.x); dot.setAttribute('cy', pt.y);
+        dot.setAttribute('r', '7');
+        dot.setAttribute('class', 'rm-dot');
+        g.appendChild(dot);
+
+        svg.appendChild(g);
+        nodeGroups.push(g);
+
+        // 팝업 (foreignObject)
+        const popW = 240, popH = 160;
+        const rawPopX = isRight ? pt.x + 28 : pt.x - popW - 28;
+        const rawPopY = pt.y - popH / 2;
+        const popX = Math.max(4, Math.min(W - popW - 4, rawPopX));
+        const popY = Math.max(4, rawPopY);
+
+        const fo = document.createElementNS(svgNS, 'foreignObject');
+        fo.setAttribute('x', popX);
+        fo.setAttribute('y', popY);
+        fo.setAttribute('width', popW);
+        fo.setAttribute('height', popH + 50);
+        fo.setAttribute('class', 'rm-popup-fo');
+        fo.style.overflow = 'visible';
+        fo.style.opacity  = '0';
+        fo.style.pointerEvents = 'none';
+        fo.style.transition = 'opacity 0.22s ease';
+        fo.style.zIndex = '999';
+
+        const popDiv = document.createElement('div');
+        popDiv.className = 'rm-popup';
+        popDiv.innerHTML = `
+            <button class="rm-popup-close" aria-label="닫기">✕</button>
+            <p class="rm-popup-step">${data.step}</p>
+            <h3 class="rm-popup-title">${data.title}</h3>
+            <p class="rm-popup-body">${data.body}</p>`;
+        fo.appendChild(popDiv);
+        svg.appendChild(fo);
+        popupEls.push(fo);
+
+        // 레이블
+        const labelX = isRight ? pt.x + 30 : pt.x - 30;
+        const anchor = isRight ? 'start' : 'end';
+
+        const stepTxt = document.createElementNS(svgNS, 'text');
+        stepTxt.setAttribute('x', labelX); stepTxt.setAttribute('y', pt.y - 16);
+        stepTxt.setAttribute('text-anchor', anchor);
+        stepTxt.setAttribute('class', 'rm-label-step');
+        stepTxt.textContent = data.step;
+        svg.appendChild(stepTxt);
+
+        const titleTxt = document.createElementNS(svgNS, 'text');
+        titleTxt.setAttribute('x', labelX); titleTxt.setAttribute('y', pt.y + 4);
+        titleTxt.setAttribute('text-anchor', anchor);
+        titleTxt.setAttribute('class', 'rm-label-title');
+        titleTxt.textContent = data.title;
+        svg.appendChild(titleTxt);
+
+        // 인터랙션
         let hoverTimer;
+        pinnedState[i] = false;
 
-        const showTooltip = () => {
+        const showPopup = () => {
             clearTimeout(hoverTimer);
-            tooltip.classList.add('is-visible');
-            node.classList.add('is-hover');
-            item.classList.add('is-active');
+            fo.style.opacity = '1';
+            fo.style.pointerEvents = 'auto';
+            ring.classList.add('rm-ring--active');
+            dot.classList.add('rm-dot--active');
         };
-        const hideTooltip = () => {
-            if (pinned) return;
-            tooltip.classList.remove('is-visible');
-            node.classList.remove('is-hover');
-            item.classList.remove('is-active');
+        const hidePopup = () => {
+            if (pinnedState[i]) return;
+            fo.style.opacity = '0';
+            fo.style.pointerEvents = 'none';
+            ring.classList.remove('rm-ring--active');
+            dot.classList.remove('rm-dot--active');
         };
-        const closeTooltip = () => {
-            pinned = false;
-            tooltip.classList.remove('is-visible');
-            node.classList.remove('is-hover', 'is-pinned');
-            item.classList.remove('is-active');
+        const closePopup = () => {
+            pinnedState[i] = false;
+            fo.style.opacity = '0';
+            fo.style.pointerEvents = 'none';
+            ring.classList.remove('rm-ring--active', 'rm-ring--pinned');
+            dot.classList.remove('rm-dot--active');
         };
 
-        // 호버
-        node.addEventListener('mouseenter', showTooltip);
-        node.addEventListener('mouseleave', () => {
-            hoverTimer = setTimeout(hideTooltip, 160);
-        });
-        tooltip.addEventListener('mouseenter', () => {
-            clearTimeout(hoverTimer);
-            tooltip.classList.add('is-visible');
-        });
-        tooltip.addEventListener('mouseleave', () => {
-            hoverTimer = setTimeout(hideTooltip, 160);
-        });
+        g.addEventListener('mouseenter', showPopup);
+        g.addEventListener('mouseleave', () => { hoverTimer = setTimeout(hidePopup, 180); });
+        popDiv.addEventListener('mouseenter', () => clearTimeout(hoverTimer));
+        popDiv.addEventListener('mouseleave', () => { hoverTimer = setTimeout(hidePopup, 180); });
 
-        // 클릭: 고정/해제
-        node.addEventListener('click', () => {
-            if (pinned) {
-                closeTooltip();
+        g.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (pinnedState[i]) {
+                closePopup();
             } else {
-                pinned = true;
-                showTooltip();
-                node.classList.add('is-pinned');
+                pinnedState[i] = true;
+                showPopup();
+                ring.classList.add('rm-ring--pinned');
             }
         });
 
-        // ✕ 닫기
-        const closeBtn = tooltip.querySelector('.tl-tooltip-close');
-        if (closeBtn) closeBtn.addEventListener('click', closeTooltip);
+        const closeBtn = popDiv.querySelector('.rm-popup-close');
+        if (closeBtn) closeBtn.addEventListener('click', (e) => { e.stopPropagation(); closePopup(); });
 
-        // ESC
-        document.addEventListener('keydown', e => {
-            if (e.key === 'Escape' && pinned) closeTooltip();
-        });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape' && pinnedState[i]) closePopup(); });
     });
 
-    // 외부 클릭으로 고정 해제
     document.addEventListener('click', e => {
-        if (!e.target.closest('.tl-node') && !e.target.closest('.tl-tooltip')) {
-            wrap.querySelectorAll('.tl-node.is-pinned').forEach(n => {
-                n.classList.remove('is-hover','is-pinned');
-                const tt = n.parentElement.querySelector('.tl-tooltip');
-                if (tt) tt.classList.remove('is-visible');
-                n.closest('.tl-item')?.classList.remove('is-active');
+        if (!e.target.closest('.rm-node-g') && !e.target.closest('.rm-popup')) {
+            nodes.forEach((_, i) => {
+                if (pinnedState[i]) {
+                    pinnedState[i] = false;
+                    popupEls[i].style.opacity = '0';
+                    popupEls[i].style.pointerEvents = 'none';
+                    nodeGroups[i]?.querySelector('.rm-ring')?.classList.remove('rm-ring--active','rm-ring--pinned');
+                    nodeGroups[i]?.querySelector('.rm-dot')?.classList.remove('rm-dot--active');
+                }
             });
         }
     });
+
+    wrap.appendChild(svg);
 };
 
 /* ════════════════════════════════════════
