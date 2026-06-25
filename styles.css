@@ -2125,3 +2125,89 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
 @media (max-width: 760px) {
   .tab-btn { padding: 9px 16px; font-size: 0.7rem; }
 }
+/* ==========================================================================
+   최종 수정본: 파일 맨 밑에 그대로 추가하시면 됩니다.
+   ========================================================================== */
+
+/* 1 & 2. 로드맵 스케일 축소 및 점 옆에 밀착하는 팝업 */
+.timeline-box {
+  position: relative;
+  padding-left: 28px !important;
+  border-left: 2px solid rgba(93, 53, 163, 0.4) !important; /* 보라색 톤 선 통일 */
+  margin: 24px 0 24px 10px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 32px !important; /* 단계별 간격 시원하게 확보 */
+}
+
+.timeline-item {
+  position: relative !important;
+  display: flex !important;
+  flex-direction: column !important;
+  outline: none !important; /* 4. 흰색 네모 박스 박멸 */
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+/* 이중 원 버리고 깔끔한 단일 원 통일 */
+.timeline-node {
+  position: absolute !important;
+  left: -34px !important;
+  top: 4px !important;
+  width: 10px !important;
+  height: 10px !important;
+  border-radius: 50% !important;
+  background: rgba(93, 53, 163, 0.5) !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+.timeline-item.is-active .timeline-node {
+  background: var(--sub) !important;
+  box-shadow: 0 0 10px var(--sub) !important;
+}
+
+/* Step과 타이틀 사이 간격 확보 */
+.timeline-step {
+  margin-bottom: 6px !important;
+}
+
+/* 팝업을 클릭한 점 바로 오른쪽에 밀착 고정 */
+.roadmap-popup {
+  position: absolute !important;
+  left: 100% !important;
+  top: -6px !important;
+  width: 280px !important;
+  margin-left: 20px !important;
+  background: rgba(23, 24, 28, 0.95) !important;
+  border: 1px solid rgba(93, 53, 163, 0.4) !important;
+  z-index: 100 !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  transform: translateX(-10px) !important;
+  transition: all 0.28s ease !important;
+}
+.timeline-item.is-active .roadmap-popup {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: translateX(0) !important;
+}
+
+/* 3. 타로 카드 겹치지 않게 시원하게 좌우 확산 */
+.tarot-deck {
+  max-width: 900px !important;
+  height: 420px !important;
+}
+.tarot-card:nth-child(1) { transform: translate3d(-260px, 15px, 0) rotate(-14deg) !important; }
+.tarot-card:nth-child(2) { transform: translate3d(-90px, -10px, 0) rotate(-5deg) !important; }
+.tarot-card:nth-child(3) { transform: translate3d(80px, -5px, 0) rotate(6deg) !important; }
+.tarot-card:nth-child(4) { transform: translate3d(250px, 20px, 0) rotate(15deg) !important; }
+
+.tarot-card:hover {
+  transform: translate3d(var(--x, 0px), -35px, 50px) rotate(0deg) scale(1.08) !important;
+}
+
+/* 4. 클릭 시 킹받는 흰색 포커스 테두리 전역 박멸 */
+.folder-item, button, [role="button"], a {
+  outline: none !important;
+  box-shadow: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
