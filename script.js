@@ -242,10 +242,6 @@ const STRENGTH_DATA = [
     { keyword: '친절한 소통', icon: '◇', desc: '협업 과정에서 갈등을 최소화하는 커뮤니케이션 방식을 추구합니다. 의견 충돌 시에도 상대방의 의도를 먼저 이해하려 노력합니다.' }
 ];
 
-// 초기 산포 레이아웃
-// scatter-wrap: width 100%(~800px), height 480px
-// 카드: 150×210px → 5장이 여유 있게 분산되도록
-// 컨테이너 너비를 ~800px로 가정, 우측 여백 고려해 최대 x ~580
 const SCATTER_LAYOUT = [
     { x:  10, y:  20, rot: -11 },   // 좌상단
     { x: 215, y:   8, rot:   5 },   // 중상단
@@ -321,7 +317,7 @@ const setupTarotCards = () => {
         card.appendChild(inner);
         scatter.appendChild(card);
 
-        // ── 드래그 + 클릭 구분 ──
+        // ── 드래그 + 클릭 구분 (메모리 누수 해결 버전) ──
         let isDragging = false;
         let dragStarted = false;
         let startX, startY, cardStartLeft, cardStartTop;
@@ -340,6 +336,9 @@ const setupTarotCards = () => {
             card.style.zIndex    = '100';
             card.style.transition = 'none';
             e.preventDefault();
+
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup',   onMouseUp);
         };
 
         const onMouseMove = (e) => {
@@ -361,8 +360,11 @@ const setupTarotCards = () => {
         const onMouseUp = () => {
             if (!isDragging) return;
             isDragging = false;
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup',   onMouseUp);
+            
             if (dragStarted) {
-                // 관성
+                // 관성 효과
                 let vx = velX * 3.2, vy = velY * 3.2;
                 let cl = parseFloat(card.style.left);
                 let ct = parseFloat(card.style.top);
@@ -380,15 +382,13 @@ const setupTarotCards = () => {
                 };
                 rafId = requestAnimationFrame(inertia);
             } else {
-                // 클릭 → 3D 플립
+                // 단순 클릭 시 3D 뒤집기
                 card.style.zIndex = String(i + 10);
                 inner.classList.toggle('is-flipped');
             }
         };
 
         card.addEventListener('mousedown', onMouseDown);
-        document.addEventListener('mousemove', onMouseMove);
-        document.addEventListener('mouseup',   onMouseUp);
     });
 };
 
@@ -440,7 +440,7 @@ const setupTimeline = () => {
     const sideEmpty   = panel.querySelector('.rm-side-empty');
     const sideContent = panel.querySelector('.rm-side-content');
 
-    // pin 상태를 객체로 관리 (클로저에서 항상 최신값 참조)
+    // pin 상태를 객체로 관리
     const state = { pinned: -1 };
 
     const showSide = (data) => {
@@ -455,16 +455,15 @@ const setupTimeline = () => {
             <p class="rm-side-body">${data.body}</p>`;
     };
     const hideSide = () => {
-        // state.pinned가 -1일 때만 숨김
         if (state.pinned !== -1) return;
         sideEmpty.style.display   = 'block';
         sideContent.style.display = 'none';
     };
 
-    // SVG
+    // SVG 규격
     const VW = 320, VH = 500;
 
-    // 노드 위치: 좌(x≈80) / 우(x≈240) 교차
+    // 노드 위치: 좌(x≈72) / 우(x≈248) 교차
     const nodes = [
         { x:  72, y:  70 },
         { x: 248, y: 185 },
@@ -472,7 +471,7 @@ const setupTimeline = () => {
         { x: 248, y: 435 },
     ];
 
-    // 완만한 S자 — 컨트롤 포인트를 노드 수직 방향으로 충분히 이격
+    // 완만한 S자 곡선 제어
     const cx = (a, b) => {
         const midY = (a.y + b.y) / 2;
         return `C ${a.x} ${midY}, ${b.x} ${midY}, ${b.x} ${b.y}`;
@@ -514,7 +513,7 @@ const setupTimeline = () => {
         g.setAttribute('role', 'button');
         g.setAttribute('aria-label', `${data.step}: ${data.title}`);
 
-        // 히트 영역
+        // 히트 영역 (터치/마우스 클릭 반경 확장)
         const hit = document.createElementNS(ns, 'circle');
         hit.setAttribute('cx', pt.x); hit.setAttribute('cy', pt.y);
         hit.setAttribute('r', '24'); hit.setAttribute('fill', 'transparent');
@@ -535,7 +534,7 @@ const setupTimeline = () => {
         svg.appendChild(g);
         nodeGroups.push({ g, ring, dot });
 
-        // 레이블
+        // 레이블 위치 설정
         const lx     = isLeft ? pt.x + 20 : pt.x - 20;
         const anchor = isLeft ? 'start'   : 'end';
 
@@ -553,7 +552,7 @@ const setupTimeline = () => {
         titleT.textContent = data.title;
         svg.appendChild(titleT);
 
-        // 인터랙션
+        // 인터랙션 바인딩
         let hoverTimer;
 
         const activate = () => {
@@ -579,12 +578,10 @@ const setupTimeline = () => {
         g.addEventListener('click', (e) => {
             e.stopPropagation();
             if (state.pinned === i) {
-                // 핀 해제
                 state.pinned = -1;
                 deactivate();
                 hideSide();
             } else {
-                // 다른 핀 해제 후 현재 핀
                 nodeGroups.forEach(({ ring: r, dot: d }, j) => {
                     if (j !== i) {
                         r.classList.remove('rm-ring--active', 'rm-ring--pinned');
@@ -598,7 +595,7 @@ const setupTimeline = () => {
         });
     });
 
-    // 외부 클릭 → 핀 해제
+    // 외부 클릭 시 핀 해제
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.rm-node-g')) {
             if (state.pinned !== -1) {
