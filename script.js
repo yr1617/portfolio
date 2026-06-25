@@ -267,9 +267,10 @@ const setupTarotCards = () => {
     if (oldHint) oldHint.remove();
 
     // 힌트 텍스트
+ // 힌트 텍스트
     const hint = document.createElement('p');
     hint.className = 'scatter-hint';
-    hint.textContent = '드래그로 이동 · 클릭으로 뒤집기';
+    hint.textContent = ''; // ◀ 따옴표 안을 그냥 이렇게 깔끔하게 비워버리세요!
     section.appendChild(hint);
 
     // 산포 컨테이너
