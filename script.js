@@ -941,7 +941,6 @@ const setupTimeline = () => {
     });
 
     svgWrap.appendChild(svg);
-};
 
 /* ════════════════════════════════════════
     폴더 GUI
