@@ -453,11 +453,11 @@ const setupTimeline = () => {
         /* ── 팝업: SVG 완전히 밖, fixed 레이어 ── */
         .rm-html-popup {
             position: fixed;
-            width: 210px;
+            width: 300px;
             background: rgba(16, 14, 28, 0.97);
             border: 1px solid rgba(93, 53, 163, 0.55);
             border-radius: 10px;
-            padding: 12px 14px;
+            padding: 14px 16px;
             box-shadow: 0 12px 36px rgba(0,0,0,0.65);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
@@ -476,15 +476,15 @@ const setupTimeline = () => {
         .rm-popup-step {
             font-size: 9px; font-weight: 700; letter-spacing: 0.2em;
             text-transform: uppercase; color: var(--sub, #dbff86);
-            margin: 0 0 4px; display: block;
+            margin: 0 0 5px; display: block;
         }
         .rm-popup-title {
-            font-size: 12px; font-weight: 700; color: #fff;
-            margin: 0 0 7px; line-height: 1.3; display: block;
+            font-size: 13px; font-weight: 700; color: #fff;
+            margin: 0 0 8px; line-height: 1.3; display: block;
         }
         .rm-popup-body {
-            font-size: 10.5px; color: rgba(209,203,220,0.88);
-            line-height: 1.6; margin: 0; display: block;
+            font-size: 11.5px; color: rgba(209,203,220,0.88);
+            line-height: 1.65; margin: 0; display: block;
         }
     `;
     wrap.appendChild(styleTag);
@@ -724,16 +724,16 @@ const setupTimeline = () => {
         }
     });
 
-    // 스크롤/리사이즈 시 핀 고정 팝업 위치 재계산
+    // 스크롤 시: 핀 고정된 팝업만 위치 재계산, 호버 팝업은 즉시 숨김
     const reposition = () => {
         if (state.pinned !== -1) {
-            const pt = nodes[state.pinned];
+            const pt      = nodes[state.pinned];
             const svgRect = svg.getBoundingClientRect();
             const scaleX  = svgRect.width  / VW;
             const scaleY  = svgRect.height / VH;
             const popup   = htmlPopups[state.pinned];
-            const popW    = popup.offsetWidth  || 210;
-            const popH    = popup.offsetHeight || 130;
+            const popW    = popup.offsetWidth  || 300;
+            const popH    = popup.offsetHeight || 140;
             let top  = svgRect.top  + pt.y * scaleY + 16;
             let left = svgRect.left + pt.x * scaleX - popW / 2;
             left = Math.max(8, Math.min(window.innerWidth - popW - 8, left));
@@ -741,6 +741,17 @@ const setupTimeline = () => {
             popup.style.left = `${left}px`;
             popup.style.top  = `${top}px`;
         }
+        // 핀 안 된 팝업은 스크롤 중 숨김 (마우스 따라다님 방지)
+        htmlPopups.forEach((p, j) => {
+            if (j !== state.pinned) {
+                p.classList.remove('is-active');
+                // 해당 노드 링/닷도 비활성화
+                if (nodeGroups[j]) {
+                    nodeGroups[j].ring.classList.remove('rm-ring--active', 'rm-ring--pinned');
+                    nodeGroups[j].dot.classList.remove('rm-dot--active');
+                }
+            }
+        });
     };
     window.addEventListener('scroll', reposition, { passive: true });
     window.addEventListener('resize', reposition, { passive: true });
