@@ -11,7 +11,9 @@ if (window.animFrameId) {
     window.animFrameId = null;
 }
 
+// ── [수정] loaderDone 변수를 전역 공간으로 빼내어 어디서든 접근 가능하게 만듭니다.
 let scene, camera, renderer, modelAnchor;
+let loaderDone = false; 
 let mouseX = 0, mouseY = 0;
 let isHoveringModel = false;
 let clock = 0;
@@ -111,7 +113,7 @@ const initThree = () => {
             scene.add(modelAnchor);
             const sl = document.querySelector('#site-loader');
             if (sl) {
-                loaderDone = true;  // 타이머 완전 차단
+                loaderDone = true;  // 이제 에러 없이 정상적으로 변수를 찾아 작동합니다.
                 const fill = document.getElementById('sl-bar-fill');
                 const txt  = document.getElementById('sl-text');
                 if (fill) fill.style.width = '100%';
@@ -121,7 +123,6 @@ const initThree = () => {
             setTimeout(handleResize, 60);
         }, undefined, err => {
             console.warn('모델 로딩 실패:', err);
-            // 실패해도 로더는 닫아줌
             const sl = document.querySelector('#site-loader');
             if (sl) {
                 loaderDone = true;
@@ -192,10 +193,7 @@ const animate = () => {
 /* ════════════════════════════════════════
     (3) NAV — 활성화 기능 완전 제거
 ════════════════════════════════════════ */
-const setupNav = () => {
-    // 활성화 밑줄/is-active 클래스 동작 없음
-    // nav 링크의 data-switch-tab 처리만 유지 (탭 전환)
-};
+const setupNav = () => {};
 
 /* ════════════════════════════════════════
     (4) TAB INTERFACE
@@ -232,7 +230,6 @@ const setupTabs = () => {
                 p.style.display = '';
             }
         });
-        // (6) 탭 전환 시 최상단으로 즉시 스크롤
         const tabRoot = document.getElementById('tab-root');
         if (tabRoot) {
             tabRoot.scrollIntoView({ behavior: 'instant', block: 'start' });
@@ -259,21 +256,10 @@ const STRENGTH_DATA = [
     { keyword: '친절한 소통', icon: '◇', desc: '협업 과정에서 갈등을 최소화하는 커뮤니케이션 방식을 추구합니다. 의견 충돌 시에도 상대방의 의도를 먼저 이해하려 노력합니다.' }
 ];
 
-// 초기 산포 레이아웃
-// scatter-wrap: width ~800px, height 520px / 카드: 180×248px
-const SCATTER_LAYOUT = [
-    { x:   8, y:  18, rot: -11 },   // 좌상단
-    { x: 210, y:   6, rot:   5 },   // 중상단
-    { x: 415, y:  15, rot:  14 },   // 우상단
-    { x:  70, y: 255, rot:  -6 },   // 좌하단
-    { x: 305, y: 240, rot:   9 },   // 중하단
-];
-
 const setupTarotCards = () => {
     const section = document.getElementById('strengths');
     if (!section) return;
 
-    // 기존 요소 제거
     const oldWrap = section.querySelector('.tarot-wrap');
     if (oldWrap) oldWrap.remove();
     const oldScatter = section.querySelector('.scatter-wrap');
@@ -281,13 +267,11 @@ const setupTarotCards = () => {
     const oldHint = section.querySelector('.tarot-hint');
     if (oldHint) oldHint.remove();
 
-    // 힌트 텍스트 완전 비움
     const hint = document.createElement('p');
     hint.className = 'scatter-hint';
     hint.textContent = '';
     section.appendChild(hint);
 
-    // 산포 컨테이너
     const scatter = document.createElement('div');
     scatter.className = 'scatter-wrap';
     section.appendChild(scatter);
@@ -296,17 +280,14 @@ const setupTarotCards = () => {
         const card = document.createElement('div');
         card.className = 'scatter-card';
         
-        // ─── [수정] 뭉침 해결을 위한 초기 부채꼴 분산 좌표 계산 ───
         const containerWidth = scatter.offsetWidth || 800;
         const centerX = containerWidth / 2;
         
-        // 5장이 중앙을 기준으로 이격되도록 픽셀값 직접 계산
         const offsets = [-260, -90, 80, 250, 420]; 
         const rotations = [-14, -6, 2, 10, 18];     
         
-        // left와 top을 시작부터 %가 아닌 순수 px 좌표로 고정
-        const initialLeft = centerX + offsets[i] - 75; // 75는 카드 너비 절반
-        const initialTop = 100; // 상단 여백 px 고정
+        const initialLeft = centerX + offsets[i] - 75; 
+        const initialTop = 100; 
         
         card.style.left = `${initialLeft}px`;
         card.style.top = `${initialTop}px`;
@@ -317,14 +298,12 @@ const setupTarotCards = () => {
         const inner = document.createElement('div');
         inner.className = 'scatter-card-inner';
 
-        // 뒷면 (초기: 아이콘 + 키워드)
         const back = document.createElement('div');
         back.className = 'scatter-face scatter-back';
         back.innerHTML = `
             <span class="sc-icon">${item.icon}</span>
             <span class="sc-keyword">${item.keyword}</span>`;
 
-        // 앞면 (클릭 후: 키워드 + 설명)
         const front = document.createElement('div');
         front.className = 'scatter-face scatter-front';
         front.innerHTML = `
@@ -337,7 +316,6 @@ const setupTarotCards = () => {
         card.appendChild(inner);
         scatter.appendChild(card);
 
-        // ── 드래그 + 클릭 구분 (순수 px 연산으로 에러 방지) ──
         let isDragging = false;
         let dragStarted = false;
         let startX, startY, cardStartLeft, cardStartTop;
@@ -370,7 +348,6 @@ const setupTarotCards = () => {
                 velY = e.clientY - lastY;
                 lastX = e.clientX; lastY = e.clientY;
 
-                // [2] 드래그 범위를 scatter-wrap 컨테이너 안으로 제한
                 const cardW  = card.offsetWidth  || 150;
                 const cardH  = card.offsetHeight || 210;
                 const maxLeft = scatter.offsetWidth  - cardW;
@@ -388,7 +365,6 @@ const setupTarotCards = () => {
             if (!isDragging) return;
             isDragging = false;
             if (dragStarted) {
-                // 관성 효과 (범위 제한 유지)
                 let vx = velX * 3.2, vy = velY * 3.2;
                 let cl = parseFloat(card.style.left) || initialLeft;
                 let ct = parseFloat(card.style.top)  || initialTop;
@@ -403,7 +379,6 @@ const setupTarotCards = () => {
                     ct = Math.max(0, Math.min(maxTop,  ct + vy));
                     card.style.left = `${cl}px`;
                     card.style.top  = `${ct}px`;
-                    // 범위 끝에 닿으면 속도 감쇠
                     if (cl <= 0 || cl >= maxLeft) vx = 0;
                     if (ct <= 0 || ct >= maxTop)  vy = 0;
                     if (Math.abs(vx) > 0.3 || Math.abs(vy) > 0.3) {
@@ -414,7 +389,6 @@ const setupTarotCards = () => {
                 };
                 rafId = requestAnimationFrame(inertia);
             } else {
-                // 클릭 → 3D 플립
                 card.style.zIndex = String(i + 10);
                 inner.classList.toggle('is-flipped');
             }
@@ -430,26 +404,11 @@ const setupTarotCards = () => {
     (1) My Story — SVG 세로 S자 곡선 로드맵
 ════════════════════════════════════════ */
 const ROADMAP_DATA = [
-    {
-        step: 'STEP 01', title: '마이스터고 선택',
-        body: '막연하게 "예쁜 것을 만들고 싶다"는 생각에서 출발해 미림마이스터고를 선택했습니다. 이론보다 실무를 직접 부딪혀 배우는 환경을 원했고, UI·UX 디자이너가 되겠다는 목표를 구체화했습니다.'
-    },
-    {
-        step: 'STEP 02', title: '디자인 기본기 학습',
-        body: '피그마의 기본 도형조차 어색했던 입학 초기부터 브랜딩, 포스터, GUI 아이콘, 디자인 시스템까지 차근차근 쌓아 왔습니다. 반복 수정과 피드백을 통해 디테일 감각을 키웠습니다.'
-    },
-    {
-        step: 'STEP 03', title: '서비스 기획 및 협업 경험',
-        body: '급식 패스, 투데인트(미림 해커톤) 등 팀 프로젝트를 통해 서비스 플로우 설계부터 UI 제작까지 전 과정을 경험했습니다. 부드러운 소통으로 협업 분위기를 유지하는 법을 배웠습니다.'
-    },
-    {
-        step: 'STEP 04', title: 'AI 활용',
-        body: 'AI ESG 교육 이수를 통해 AI 도구를 디자인 워크플로에 접목하는 방법을 탐색했습니다. 생성형 AI를 활용해 그래픽 작업의 가능성을 넓히고 있습니다.'
-    },
-    {
-        step: 'STEP 05', title: '앞으로의 목표',
-        body: '단기적으로는 피그마 스킬을 강화하고, 중장기적으로는 비즈니스 목표와 사용자 니즈를 동시에 만족시키는 프로덕트 디자이너로 성장하는 것이 목표입니다.'
-    }
+    { step: 'STEP 01', title: '마이스터고 선택', body: '막연하게 "예쁜 것을 만들고 싶다"는 생각에서 출발해 미림마이스터고를 선택했습니다. 이론보다 실무를 직접 부딪혀 배우는 환경을 원했고, UI·UX 디자이너가 되겠다는 목표를 구체화했습니다.' },
+    { step: 'STEP 02', title: '디자인 기본기 학습', body: '피그마의 기본 도형조차 어색했던 입학 초기부터 브랜딩, 포스터, GUI 아이콘, 디자인 시스템까지 차근차근 쌓아 왔습니다. 반복 수정과 피드백을 통해 디테일 감각을 키웠습니다.' },
+    { step: 'STEP 03', title: '서비스 기획 및 협업 경험', body: '급식 패스, 투데인트(미림 해커톤) 등 팀 프로젝트를 통해 서비스 플로우 설계부터 UI 제작까지 전 과정을 경험했습니다. 부드러운 소통으로 협업 분위기를 유지하는 법을 배웠습니다.' },
+    { step: 'STEP 04', title: 'AI 활용', body: 'AI ESG 교육 이수를 통해 AI 도구를 디자인 워크플로에 접목하는 방법을 탐색했습니다. 생성형 AI를 활용해 그래픽 작업의 가능성을 넓히고 있습니다.' },
+    { step: 'STEP 05', title: '앞으로의 목표', body: '단기적으로는 피그마 스킬을 강화하고, 중장기적으로는 비즈니스 목표와 사용자 니즈를 동시에 만족시키는 프로덕트 디자이너로 성장하는 것이 목표입니다.' }
 ];
 
 const setupTimeline = () => {
@@ -460,14 +419,11 @@ const setupTimeline = () => {
     wrap.innerHTML = '';
     wrap.style.cssText = 'position:relative; width:100%; max-width:900px; margin:0 auto; padding:20px 0;';
 
-    // ── CSS 주입 ──
     const styleTag = document.createElement('style');
     styleTag.textContent = `
         .roadmap-svg-new { width: 100%; height: auto; display: block; overflow: visible; }
         .rm-label-step  { font-size: 10px; font-weight: 700; fill: var(--sub, #dbff86); letter-spacing: 0.06em; }
         .rm-label-title { font-size: 13px; font-weight: 600; fill: #ffffff; }
-
-        /* ── 팝업: SVG 완전히 밖, fixed 레이어 ── */
         .rm-html-popup {
             position: fixed;
             width: 380px;
@@ -490,21 +446,9 @@ const setupTimeline = () => {
             pointer-events: auto;
             border-color: rgba(170, 233, 97, 0.5);
         }
-        .rm-popup-step {
-            font-size: 11px; font-weight: 700; letter-spacing: 0.2em;
-            text-transform: uppercase; color: var(--sub, #dbff86);
-            margin: 0 0 7px; display: block;
-        }
-        .rm-popup-title {
-            font-size: 16px; font-weight: 700; color: #fff;
-            margin: 0 0 12px; line-height: 1.3; display: block;
-        }
-        .rm-popup-body {
-            font-size: 13.5px; color: rgba(209,203,220,0.9);
-            line-height: 1.7; margin: 0; display: block;
-            border-top: 1px solid rgba(255,255,255,0.07);
-            padding-top: 10px;
-        }
+        .rm-popup-step { font-size: 11px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--sub, #dbff86); margin: 0 0 7px; display: block; }
+        .rm-popup-title { font-size: 16px; font-weight: 700; color: #fff; margin: 0 0 12px; line-height: 1.3; display: block; }
+        .rm-popup-body { font-size: 13.5px; color: rgba(209,203,220,0.9); line-height: 1.7; margin: 0; display: block; border-top: 1px solid rgba(255,255,255,0.07); padding-top: 10px; }
     `;
     wrap.appendChild(styleTag);
 
@@ -512,9 +456,7 @@ const setupTimeline = () => {
     svgWrap.style.position = 'relative';
     wrap.appendChild(svgWrap);
 
-    // ── SVG 설정 ──
     const VW = 600, VH = 700;
-
     const nodes = [
         { x: 140, y:  80 },
         { x: 460, y: 205 },
@@ -524,7 +466,6 @@ const setupTimeline = () => {
     ];
 
     const ns = 'http://www.w3.org/2000/svg';
-
     const cx = (a, b) => {
         const midY = (a.y + b.y) / 2;
         return `C ${a.x} ${midY}, ${b.x} ${midY}, ${b.x} ${b.y}`;
@@ -549,7 +490,6 @@ const setupTimeline = () => {
     svg.setAttribute('class', 'roadmap-svg-new');
     svg.setAttribute('viewBox', `0 0 ${VW} ${VH}`);
 
-    // 그라디언트 defs
     const defs = document.createElementNS(ns, 'defs');
     const tailGrad = document.createElementNS(ns, 'linearGradient');
     tailGrad.setAttribute('id', 'rm-tail-grad');
@@ -560,6 +500,7 @@ const setupTimeline = () => {
     const stop2 = document.createElementNS(ns, 'stop');
     stop2.setAttribute('offset','100%'); stop2.setAttribute('stop-color','rgba(170,233,97,0)');
     tailGrad.appendChild(stop1); tailGrad.appendChild(stop2);
+    
     const ghostGrad = document.createElementNS(ns, 'linearGradient');
     ghostGrad.setAttribute('id','rm-ghost-grad');
     ghostGrad.setAttribute('x1','0'); ghostGrad.setAttribute('y1','0');
@@ -572,7 +513,6 @@ const setupTimeline = () => {
     defs.appendChild(tailGrad); defs.appendChild(ghostGrad);
     svg.appendChild(defs);
 
-    // 선들
     const track = document.createElementNS(ns, 'path');
     track.setAttribute('d', mainPathD); track.setAttribute('class', 'rm-track');
     svg.appendChild(track);
@@ -592,7 +532,6 @@ const setupTimeline = () => {
 
     const state      = { pinned: -1 };
     const nodeGroups = [];
-    // ── 팝업을 HTML div로, document.body에 붙임 ──
     const htmlPopups = [];
 
     nodes.forEach((pt, i) => {
@@ -600,7 +539,6 @@ const setupTimeline = () => {
         const isLeft         = pt.x < VW / 2;
         const isCenterBottom = i === 4;
 
-        // ── HTML 팝업 생성 (body 직속, fixed) ──
         const popup = document.createElement('div');
         popup.className = 'rm-html-popup';
         popup.innerHTML = `
@@ -610,7 +548,6 @@ const setupTimeline = () => {
         document.body.appendChild(popup);
         htmlPopups.push(popup);
 
-        // 팝업 위치 갱신: 노드의 실제 화면 좌표를 구해 노드 바로 아래에 배치
         const positionPopup = () => {
             const svgRect = svg.getBoundingClientRect();
             const scaleX  = svgRect.width  / VW;
@@ -621,13 +558,10 @@ const setupTimeline = () => {
             const popW = popup.offsetWidth  || 380;
             const popH = popup.offsetHeight || 160;
 
-            // 노드 아래 16px
             let top  = nodeScreenY + 16;
-            // 수평: 노드 중앙 기준 팝업 중앙 정렬, 화면 밖으로 나가지 않게 보정
             let left = nodeScreenX - popW / 2;
             left = Math.max(8, Math.min(window.innerWidth - popW - 8, left));
 
-            // 화면 하단을 벗어나면 노드 위로 올림
             if (top + popH > window.innerHeight - 8) {
                 top = nodeScreenY - popH - 16;
             }
@@ -636,7 +570,6 @@ const setupTimeline = () => {
             popup.style.top  = `${top}px`;
         };
 
-        // ── 노드 그룹 (SVG 안) ──
         const g = document.createElementNS(ns, 'g');
         g.setAttribute('class', 'rm-node-g');
         g.setAttribute('tabindex', '0');
@@ -663,7 +596,6 @@ const setupTimeline = () => {
         svg.appendChild(g);
         nodeGroups.push({ g, ring, dot });
 
-        // 레이블
         const lx     = isCenterBottom ? pt.x + 20 : (isLeft ? pt.x + 20 : pt.x - 20);
         const anchor = isCenterBottom ? 'start'   : (isLeft ? 'start'   : 'end');
         const stepT  = document.createElementNS(ns, 'text');
@@ -680,7 +612,6 @@ const setupTimeline = () => {
         titleT.textContent = data.title;
         svg.appendChild(titleT);
 
-        // ── 인터랙션 ──
         let hoverTimer;
 
         const showPopup = () => {
@@ -719,7 +650,6 @@ const setupTimeline = () => {
         });
     });
 
-    // 외부 클릭 → 핀 해제
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.rm-node-g') && !e.target.closest('.rm-html-popup')) {
             if (state.pinned !== -1) {
@@ -732,7 +662,6 @@ const setupTimeline = () => {
         }
     });
 
-    // ESC → 핀 해제
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && state.pinned !== -1) {
             const { ring: r, dot: d } = nodeGroups[state.pinned];
@@ -743,7 +672,6 @@ const setupTimeline = () => {
         }
     });
 
-    // 스크롤 시: 핀 고정된 팝업만 위치 재계산, 호버 팝업은 즉시 숨김
     const reposition = () => {
         if (state.pinned !== -1) {
             const pt      = nodes[state.pinned];
@@ -760,11 +688,9 @@ const setupTimeline = () => {
             popup.style.left = `${left}px`;
             popup.style.top  = `${top}px`;
         }
-        // 핀 안 된 팝업은 스크롤 중 숨김 (마우스 따라다님 방지)
         htmlPopups.forEach((p, j) => {
             if (j !== state.pinned) {
                 p.classList.remove('is-active');
-                // 해당 노드 링/닷도 비활성화
                 if (nodeGroups[j]) {
                     nodeGroups[j].ring.classList.remove('rm-ring--active', 'rm-ring--pinned');
                     nodeGroups[j].dot.classList.remove('rm-dot--active');
@@ -876,30 +802,12 @@ const setupFolderGUI = () => {
     프로젝트 상세 모달
 ════════════════════════════════════════ */
 const PROJECT_DATA = {
-    p1:{img:'project1.jpg',category:'교과 프로젝트',period:'2026',
-        title:'그래픽 포스터 제작 프로젝트 [모디곰 BI 포스터]',
-        desc:'직접 기획한 앱 서비스인 모디곰의 브랜드 아이덴티티 포스터를 제작하였습니다. 브랜드의 핵심 가치를 시각적으로 표현하고, AI를 활용한 3D 그래픽을 활용해 결과물의 완성도를 높였습니다.',
-        role:'서비스 기획, 그래픽 디자인, 브랜딩',tools:['Adobe Photoshop','Adobe Illustrator','Gemini']},
-    p2:{img:'project2.jpg',category:'교과 프로젝트',period:'2025',
-        title:'맛집 지도 서비스 제작 프로젝트 [MZ]',
-        desc:'사용자 주변의 맛집을 직관적으로 탐색할 수 있는 지도 기반 서비스의 UI와 로고를 제작하였습니다. 맛집 서비스 레퍼런스 수집을 통해 핵심 기능을 정의하고, 피그마를 활용하여 와이어프레임부터 최종 시안까지 제작했습니다.',
-        role:'UI 디자인, 로고 디자인',tools:['Figma','Adobe Illustrator','Notion']},
-    p3:{img:'project3.png',category:'동아리 활동',period:'2026',
-        title:'급식 티켓팅 서비스 제작 프로젝트 [급식 패스]',
-        desc:'기숙사생들이 먹지 않은 조식과 석식을, 통학생들이 예매할 수 있게 하여 잔반 문제를 해결하기 위해 제작한 앱 서비스입니다. 팀원들과 함께 문제 정의부터 서비스 플로우 설계, UI 제작까지 전 과정을 함께 진행하였습니다.',
-        role:'로고 디자인, 서비스 기획, UI 디자인',tools:['Figma','Adobe Illustrator','Notion']},
-    p4:{img:'project4.png',category:'동아리 활동 · 해커톤',period:'2025',
-        title:'컬러워크 기록 서비스 제작 프로젝트 [투데인트]',
-        desc:'투데인트는 산책하며 특정 색을 집중해 찾아보는 방법인 \'컬러워크\'를 날짜별로 기록할 수 있는 서비스입니다. 미림 해커톤에서 기획부터 디자인까지 완성하였습니다. 감성적인 색상 기반 UX와 심플한 인터페이스를 중점적으로 설계했습니다.',
-        role:'브랜딩, UI/UX 디자인, 서비스 기획',tools:['Figma','Adobe Illustrator','Notion']},
-    p5:{img:'project5.png',category:'동아리 활동',period:'2026',
-        title:'JS 스터디 홍보 게시물 제작',
-        desc:'전공 동아리 JS 스터디의 홍보 게시물을 제작하였습니다. 홍보 포스터와 SNS 홍보 게시물을 디자인하였으며 정보 전달의 명확성과 시각적 매력을 동시에 고려하였습니다.',
-        role:'그래픽 디자인, 콘텐츠 제작',tools:['Adobe Illustrator','Figma']},
-    p6:{img:'project6.jpg',category:'교과 프로젝트',period:'2025',
-        title:'GUI 스타일별 아이콘 제작 프로젝트',
-        desc:'Dot Pixel, Skeuomorphism, Flat, Material, Brutalism, Glassmorphism 여섯 가지의 GUI 스타일을 분석하고, 각 스타일에 맞는 아이콘 세트를 직접 제작하였습니다.',
-        role:'아이콘 디자인',tools:['Figma']},
+    p1:{img:'project1.jpg',category:'교과 프로젝트',period:'2026', title:'그래픽 포스터 제작 프로젝트 [모디곰 BI 포스터]', desc:'직접 기획한 앱 서비스인 모디곰의 브랜드 아이덴티티 포스터를 제작하였습니다. 브랜드의 핵심 가치를 시각적으로 표현하고, AI를 활용한 3D 그래픽을 활용해 결과물의 완성도를 높였습니다.', role:'서비스 기획, 그래픽 디자인, 브랜딩',tools:['Adobe Photoshop','Adobe Illustrator','Gemini']},
+    p2:{img:'project2.jpg',category:'교과 프로젝트',period:'2025', title:'맛집 지도 서비스 제작 프로젝트 [MZ]', desc:'사용자 주변의 맛집을 직관적으로 탐색할 수 있는 지도 기반 서비스의 UI와 로고를 제작하였습니다. 맛집 서비스 레퍼런스 수집을 통해 핵심 기능을 정의하고, 피그마를 활용하여 와이어프레임부터 최종 시안까지 제작했습니다.', role:'UI 디자인, 로고 디자인',tools:['Figma','Adobe Illustrator','Notion']},
+    p3:{img:'project3.png',category:'동아리 활동',period:'2026', title:'급식 티켓팅 서비스 제작 프로젝트 [급식 패스]', desc:'기숙사생들이 먹지 않은 조식과 석식을, 통학생들이 예매할 수 있게 하여 잔반 문제를 해결하기 위해 제작한 앱 서비스입니다. 팀원들과 함께 문제 정의부터 서비스 플로우 설계, UI 제작까지 전 과정을 함께 진행하였습니다.', role:'로고 디자인, 서비스 기획, UI 디자인',tools:['Figma','Adobe Illustrator','Notion']},
+    p4:{img:'project4.png',category:'동아리 활동 · 해커톤',period:'2025', title:'컬러워크 기록 서비스 제작 프로젝트 [투데인트]', desc:'투데인트는 산책하며 특정 색을 집중해 찾아보는 방법인 \'컬러워크\'를 날짜별로 기록할 수 있는 서비스입니다. 미림 해커톤에서 기획부터 디자인까지 완성하였습니다. 감성적인 색상 기반 UX와 심플한 인터페이스를 중점적으로 설계했습니다.', role:'브랜딩, UI/UX 디자인, 서비스 기획',tools:['Figma','Adobe Illustrator','Notion']},
+    p5:{img:'project5.png',category:'동아리 활동',period:'2026', title:'JS 스터디 홍보 게시물 제작', desc:'전공 동아리 JS 스터디의 홍보 게시물을 제작하였습니다. 홍보 포스터와 SNS 홍보 게시물을 디자인하였으며 정보 전달의 명확성과 시각적 매력을 동시에 고려하였습니다.', role:'그래픽 디자인, 콘텐츠 제작',tools:['Adobe Illustrator','Figma']},
+    p6:{img:'project6.jpg',category:'교과 프로젝트',period:'2025', title:'GUI 스타일별 아이콘 제작 프로젝트', desc:'Dot Pixel, Skeuomorphism, Flat, Material, Brutalism, Glassmorphism 여섯 가지의 GUI 스타일을 분석하고, 각 스타일에 맞는 아이콘 세트를 직접 제작하였습니다.', role:'아이콘 디자인',tools:['Figma']},
 };
 
 const setupProjectModal = () => {
@@ -980,17 +888,15 @@ window.addEventListener('scroll', () => {
     INIT
 ════════════════════════════════════════ */
 window.onload = () => {
-    // ── 로더 프로그레스 애니메이션 ──
     const slFill = document.getElementById('sl-bar-fill');
     const slText = document.getElementById('sl-text');
     const MESSAGES = ['불러오는 중...', '모델 로딩 중...', '거의 다 됐어요...'];
     let progress = 0;
     let msgIdx   = 0;
-    let loaderDone = false;  // 완료 플래그 — 타이머가 100% 이후를 건드리지 못하게 막음
 
     const advanceProgress = () => {
-        if (loaderDone) return;  // 완료됐으면 즉시 종료
-        const target = Math.min(progress + (Math.random() * 14 + 5), 92);  // 최대 92%까지만
+        if (loaderDone) return; // ── 이제 파일 최상단 전역 변수를 올바르게 참조합니다.
+        const target = Math.min(progress + (Math.random() * 14 + 5), 92); 
         progress = target;
         if (slFill) slFill.style.width = `${progress}%`;
 
@@ -1000,7 +906,6 @@ window.onload = () => {
         if (progress < 92) {
             setTimeout(advanceProgress, 420 + Math.random() * 360);
         }
-        // 92% 도달 후엔 타이머 자연 종료 — 모델 완료 시에만 100%로 채움
     };
     setTimeout(advanceProgress, 200);
 
@@ -1015,11 +920,11 @@ window.onload = () => {
     animate();
     setTimeout(handleResize, 150);
 };
-/* ==========================================================================
-   최종 수정본: 파일 맨 밑에 그대로 추가하시면 됩니다.
-   ========================================================================== */
+
+/* ════════════════════════════════════════
+   최종 수정본 후속 처리
+   ════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
-    // 로드맵 항목 클릭 시 옆에 밀착된 팝업 표시 전용 토글
     document.querySelectorAll('.timeline-item').forEach(item => {
         item.addEventListener('click', function(e) {
             e.stopPropagation();
@@ -1030,7 +935,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
-    // 바깥 클릭 시 팝업 닫기
     document.addEventListener('click', () => {
         document.querySelectorAll('.timeline-item').forEach(i => i.classList.remove('is-active'));
     });
