@@ -2270,9 +2270,8 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
   height: 100%;
   width: 0%;
   border-radius: 99px;
-  background: linear-gradient(90deg, rgba(93,53,163,0.8), var(--sub, #dbff86));
+  background: #ffffff;
   transition: width 0.25s ease;
-  box-shadow: 0 0 8px rgba(219,255,134,0.4);
 }
 
 .sl-text {
