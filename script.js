@@ -453,14 +453,14 @@ const setupTimeline = () => {
         /* ── 팝업: SVG 완전히 밖, fixed 레이어 ── */
         .rm-html-popup {
             position: fixed;
-            width: 300px;
+            width: 380px;
             background: rgba(16, 14, 28, 0.97);
             border: 1px solid rgba(93, 53, 163, 0.55);
-            border-radius: 10px;
-            padding: 14px 16px;
-            box-shadow: 0 12px 36px rgba(0,0,0,0.65);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
+            border-radius: 14px;
+            padding: 20px 22px;
+            box-shadow: 0 16px 48px rgba(0,0,0,0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             z-index: 9999;
             pointer-events: none;
             opacity: 0;
@@ -474,17 +474,19 @@ const setupTimeline = () => {
             border-color: rgba(170, 233, 97, 0.5);
         }
         .rm-popup-step {
-            font-size: 9px; font-weight: 700; letter-spacing: 0.2em;
+            font-size: 11px; font-weight: 700; letter-spacing: 0.2em;
             text-transform: uppercase; color: var(--sub, #dbff86);
-            margin: 0 0 5px; display: block;
+            margin: 0 0 7px; display: block;
         }
         .rm-popup-title {
-            font-size: 13px; font-weight: 700; color: #fff;
-            margin: 0 0 8px; line-height: 1.3; display: block;
+            font-size: 16px; font-weight: 700; color: #fff;
+            margin: 0 0 12px; line-height: 1.3; display: block;
         }
         .rm-popup-body {
-            font-size: 11.5px; color: rgba(209,203,220,0.88);
-            line-height: 1.65; margin: 0; display: block;
+            font-size: 13.5px; color: rgba(209,203,220,0.9);
+            line-height: 1.7; margin: 0; display: block;
+            border-top: 1px solid rgba(255,255,255,0.07);
+            padding-top: 10px;
         }
     `;
     wrap.appendChild(styleTag);
@@ -599,8 +601,8 @@ const setupTimeline = () => {
             const nodeScreenX = svgRect.left + pt.x * scaleX;
             const nodeScreenY = svgRect.top  + pt.y * scaleY;
 
-            const popW = popup.offsetWidth  || 210;
-            const popH = popup.offsetHeight || 130;
+            const popW = popup.offsetWidth  || 380;
+            const popH = popup.offsetHeight || 160;
 
             // 노드 아래 16px
             let top  = nodeScreenY + 16;
@@ -732,8 +734,8 @@ const setupTimeline = () => {
             const scaleX  = svgRect.width  / VW;
             const scaleY  = svgRect.height / VH;
             const popup   = htmlPopups[state.pinned];
-            const popW    = popup.offsetWidth  || 300;
-            const popH    = popup.offsetHeight || 140;
+            const popW    = popup.offsetWidth  || 380;
+            const popH    = popup.offsetHeight || 160;
             let top  = svgRect.top  + pt.y * scaleY + 16;
             let left = svgRect.left + pt.x * scaleX - popW / 2;
             left = Math.max(8, Math.min(window.innerWidth - popW - 8, left));
