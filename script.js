@@ -110,9 +110,25 @@ const initThree = () => {
             modelAnchor.position.set(0, 0.35, 0);
             scene.add(modelAnchor);
             const sl = document.querySelector('#site-loader');
-            if (sl) sl.classList.add('is-loaded');
+            if (sl) {
+                // 프로그레스 100% 채우고 0.4초 후 닫기
+                const fill = document.getElementById('sl-bar-fill');
+                const txt  = document.getElementById('sl-text');
+                if (fill) fill.style.width = '100%';
+                if (txt)  txt.textContent  = '완료!';
+                setTimeout(() => sl.classList.add('is-loaded'), 500);
+            }
             setTimeout(handleResize, 60);
-        }, undefined, err => console.warn('모델 로딩 실패:', err));
+        }, undefined, err => {
+            console.warn('모델 로딩 실패:', err);
+            // 실패해도 로더는 닫아줌
+            const sl = document.querySelector('#site-loader');
+            if (sl) {
+                const fill = document.getElementById('sl-bar-fill');
+                if (fill) fill.style.width = '100%';
+                setTimeout(() => sl.classList.add('is-loaded'), 400);
+            }
+        });
     };
 
     new RGBELoader().load('./studio.hdr',
@@ -963,10 +979,33 @@ window.addEventListener('scroll', () => {
     INIT
 ════════════════════════════════════════ */
 window.onload = () => {
+    // ── 로더 프로그레스 애니메이션 ──
+    const slFill = document.getElementById('sl-bar-fill');
+    const slText = document.getElementById('sl-text');
+    const MESSAGES = ['불러오는 중...', '모델 로딩 중...', '거의 다 됐어요...'];
+    let progress = 0;
+    let msgIdx   = 0;
+
+    const advanceProgress = () => {
+        // 95%까지 자동 진행, 나머지는 모델 로드 완료 시 채움
+        const target = Math.min(progress + (Math.random() * 18 + 6), 95);
+        progress = target;
+        if (slFill) slFill.style.width = `${progress}%`;
+
+        // 메시지 순환
+        if (progress > 40 && msgIdx === 0) { msgIdx = 1; if (slText) slText.textContent = MESSAGES[1]; }
+        if (progress > 75 && msgIdx === 1) { msgIdx = 2; if (slText) slText.textContent = MESSAGES[2]; }
+
+        if (progress < 95) {
+            setTimeout(advanceProgress, 380 + Math.random() * 320);
+        }
+    };
+    setTimeout(advanceProgress, 200);
+
     setupNav();
     setupTabs();
-    setupTarotCards();    // (1) 타로 카드
-    setupTimeline();      // (5) 세로 타임라인
+    setupTarotCards();
+    setupTimeline();
     setupFolderGUI();
     setupProjectModal();
     setupReveal();
