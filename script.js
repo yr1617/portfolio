@@ -426,8 +426,12 @@ const ROADMAP_DATA = [
         body: '급식 패스, 투데인트(미림 해커톤) 등 팀 프로젝트를 통해 서비스 플로우 설계부터 UI 제작까지 전 과정을 경험했습니다. 부드러운 소통으로 협업 분위기를 유지하는 법을 배웠습니다.'
     },
     {
-        step: 'STEP 04', title: 'AI 활용 & 앞으로의 목표',
-        body: 'AI ESG 교육 이수를 통해 AI 도구를 디자인 워크플로에 접목하는 방법을 탐색했습니다. 단기적으로는 피그마 스킬 강화, 중장기적으로는 프로덕트 디자이너로 성장하는 것이 목표입니다.'
+        step: 'STEP 04', title: 'AI 활용',
+        body: 'AI ESG 교육 이수를 통해 AI 도구를 디자인 워크플로에 접목하는 방법을 탐색했습니다. 생성형 AI를 활용해 그래픽 작업의 가능성을 넓히고 있습니다.'
+    },
+    {
+        step: 'STEP 05', title: '앞으로의 목표',
+        body: '단기적으로는 피그마 스킬을 강화하고, 중장기적으로는 비즈니스 목표와 사용자 니즈를 동시에 만족시키는 프로덕트 디자이너로 성장하는 것이 목표입니다.'
     }
 ];
 
@@ -446,7 +450,7 @@ const setupTimeline = () => {
         .rm-label-step  { font-size: 10px; font-weight: 700; fill: var(--sub, #dbff86); letter-spacing: 0.06em; }
         .rm-label-title { font-size: 13px; font-weight: 600; fill: #ffffff; }
 
-        /* 노드별 인라인 팝업 (foreignObject 안) */
+        /* 노드별 팝업 (항상 노드 아래에 위치) */
         .rm-node-popup {
             background: rgba(16, 14, 28, 0.97);
             border: 1px solid rgba(93, 53, 163, 0.55);
@@ -455,7 +459,7 @@ const setupTimeline = () => {
             box-shadow: 0 8px 28px rgba(0,0,0,0.55);
             backdrop-filter: blur(8px);
             opacity: 0;
-            transform: translateY(4px) scale(0.97);
+            transform: translateY(-4px) scale(0.97);
             transition: opacity 0.2s ease, transform 0.2s ease;
             pointer-events: none;
             box-sizing: border-box;
@@ -481,6 +485,259 @@ const setupTimeline = () => {
             line-height: 1.55; margin: 0; display: block;
         }
     `;
+    wrap.appendChild(styleTag);
+
+    const svgWrap = document.createElement('div');
+    svgWrap.style.position = 'relative';
+    wrap.appendChild(svgWrap);
+
+    // ── SVG 설정 ──
+    // STEP 01~04: S자 곡선 (좌↔우 교차)
+    // STEP 05: 마지막 노드(우측)에서 아래 중앙으로 빠짐
+    const VW = 600, VH = 700;
+    const POPUP_W = 190;
+    const POPUP_H = 115;
+
+    // 노드 좌표 (5개)
+    const nodes = [
+        { x: 140, y:  80 },   // STEP 01 — 좌
+        { x: 460, y: 205 },   // STEP 02 — 우
+        { x: 140, y: 330 },   // STEP 03 — 좌
+        { x: 460, y: 455 },   // STEP 04 — 우
+        { x: 300, y: 580 },   // STEP 05 — 중앙 (아래로 빠짐)
+    ];
+
+    const ns = 'http://www.w3.org/2000/svg';
+
+    // ── 메인 곡선 (STEP 01 → 04) ──
+    const cx = (a, b) => {
+        const midY = (a.y + b.y) / 2;
+        return `C ${a.x} ${midY}, ${b.x} ${midY}, ${b.x} ${b.y}`;
+    };
+    const mainPathD = [
+        `M ${nodes[0].x} ${nodes[0].y}`,
+        cx(nodes[0], nodes[1]),
+        cx(nodes[1], nodes[2]),
+        cx(nodes[2], nodes[3]),
+    ].join(' ');
+
+    // ── STEP 04 → 05 페이드 아웃 선 (중앙으로 수렴) ──
+    const tailPathD = [
+        `M ${nodes[3].x} ${nodes[3].y}`,
+        `C ${nodes[3].x} ${nodes[3].y + 80},`,
+        `  ${nodes[4].x} ${nodes[4].y - 80},`,
+        `  ${nodes[4].x} ${nodes[4].y}`,
+    ].join(' ');
+
+    // ── STEP 05 너머 페이드아웃 점선 (옅어지는 방향 표시) ──
+    const ghostPathD = `M ${nodes[4].x} ${nodes[4].y} L ${nodes[4].x} ${nodes[4].y + 50}`;
+
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('class', 'roadmap-svg-new');
+    svg.setAttribute('viewBox', `0 0 ${VW} ${VH}`);
+
+    // 그라디언트 정의 (tail 선 페이드)
+    const defs = document.createElementNS(ns, 'defs');
+
+    const tailGrad = document.createElementNS(ns, 'linearGradient');
+    tailGrad.setAttribute('id', 'rm-tail-grad');
+    tailGrad.setAttribute('x1', '0'); tailGrad.setAttribute('y1', '0');
+    tailGrad.setAttribute('x2', '0'); tailGrad.setAttribute('y2', '1');
+    const stop1 = document.createElementNS(ns, 'stop');
+    stop1.setAttribute('offset', '0%');
+    stop1.setAttribute('stop-color', 'rgba(170,233,97,0.45)');
+    const stop2 = document.createElementNS(ns, 'stop');
+    stop2.setAttribute('offset', '100%');
+    stop2.setAttribute('stop-color', 'rgba(170,233,97,0)');
+    tailGrad.appendChild(stop1); tailGrad.appendChild(stop2);
+
+    const ghostGrad = document.createElementNS(ns, 'linearGradient');
+    ghostGrad.setAttribute('id', 'rm-ghost-grad');
+    ghostGrad.setAttribute('x1', '0'); ghostGrad.setAttribute('y1', '0');
+    ghostGrad.setAttribute('x2', '0'); ghostGrad.setAttribute('y2', '1');
+    const gs1 = document.createElementNS(ns, 'stop');
+    gs1.setAttribute('offset', '0%');   gs1.setAttribute('stop-color', 'rgba(255,255,255,0.12)');
+    const gs2 = document.createElementNS(ns, 'stop');
+    gs2.setAttribute('offset', '100%'); gs2.setAttribute('stop-color', 'rgba(255,255,255,0)');
+    ghostGrad.appendChild(gs1); ghostGrad.appendChild(gs2);
+
+    defs.appendChild(tailGrad);
+    defs.appendChild(ghostGrad);
+    svg.appendChild(defs);
+
+    // 메인 배경 트랙
+    const track = document.createElementNS(ns, 'path');
+    track.setAttribute('d', mainPathD); track.setAttribute('class', 'rm-track');
+    svg.appendChild(track);
+
+    // 메인 진행선
+    const prog = document.createElementNS(ns, 'path');
+    prog.setAttribute('d', mainPathD); prog.setAttribute('class', 'rm-progress');
+    svg.appendChild(prog);
+
+    // STEP04→05 페이드 선 (그라디언트)
+    const tailPath = document.createElementNS(ns, 'path');
+    tailPath.setAttribute('d', tailPathD);
+    tailPath.setAttribute('fill', 'none');
+    tailPath.setAttribute('stroke', 'url(#rm-tail-grad)');
+    tailPath.setAttribute('stroke-width', '2');
+    tailPath.setAttribute('stroke-linecap', 'round');
+    svg.appendChild(tailPath);
+
+    // STEP05 너머 점점 사라지는 선
+    const ghostPath = document.createElementNS(ns, 'path');
+    ghostPath.setAttribute('d', ghostPathD);
+    ghostPath.setAttribute('fill', 'none');
+    ghostPath.setAttribute('stroke', 'url(#rm-ghost-grad)');
+    ghostPath.setAttribute('stroke-width', '1.5');
+    ghostPath.setAttribute('stroke-linecap', 'round');
+    ghostPath.setAttribute('stroke-dasharray', '4 5');
+    svg.appendChild(ghostPath);
+
+    const state      = { pinned: -1 };
+    const nodeGroups = [];
+    const popupFOs   = [];
+
+    nodes.forEach((pt, i) => {
+        const data   = ROADMAP_DATA[i];
+        const isLeft = pt.x < VW / 2;
+        const isCenterBottom = i === 4; // STEP 05
+
+        // ── 팝업 foreignObject — 항상 노드 아래 ──
+        // 레이블은 노드 옆(수평)에 배치 → 팝업은 레이블 아래 방향에만 뜸
+        // 팝업 X: 노드 중심 기준, 경계 보정
+        let foX = pt.x - POPUP_W / 2;
+        foX = Math.max(8, Math.min(VW - POPUP_W - 8, foX));
+        // 팝업 Y: 노드 아래 레이블(최대 +20px) 아래 여유 12px
+        const foY = pt.y + 32;
+
+        const fo = document.createElementNS(ns, 'foreignObject');
+        fo.setAttribute('x', foX);
+        fo.setAttribute('y', foY);
+        fo.setAttribute('width', POPUP_W);
+        fo.setAttribute('height', POPUP_H);
+        fo.style.overflow = 'visible';
+        fo.style.zIndex   = '50';
+
+        const popDiv = document.createElement('div');
+        popDiv.className = 'rm-node-popup';
+        popDiv.innerHTML = `
+            <span class="rm-popup-step">${data.step}</span>
+            <span class="rm-popup-title">${data.title}</span>
+            <span class="rm-popup-body">${data.body}</span>`;
+        fo.appendChild(popDiv);
+        svg.appendChild(fo);
+        popupFOs.push({ fo, popDiv });
+
+        // ── 노드 그룹 ──
+        const g = document.createElementNS(ns, 'g');
+        g.setAttribute('class', 'rm-node-g');
+        g.setAttribute('tabindex', '0');
+        g.setAttribute('role', 'button');
+        g.setAttribute('aria-label', `${data.step}: ${data.title}`);
+
+        const hit = document.createElementNS(ns, 'circle');
+        hit.setAttribute('cx', pt.x); hit.setAttribute('cy', pt.y);
+        hit.setAttribute('r', '24'); hit.setAttribute('fill', 'transparent');
+        g.appendChild(hit);
+
+        const ring = document.createElementNS(ns, 'circle');
+        ring.setAttribute('cx', pt.x); ring.setAttribute('cy', pt.y);
+        ring.setAttribute('r', '13'); ring.setAttribute('class', 'rm-ring');
+        // STEP 05는 미래 느낌 — 점선 링
+        if (isCenterBottom) ring.setAttribute('stroke-dasharray', '4 3');
+        g.appendChild(ring);
+
+        const dot = document.createElementNS(ns, 'circle');
+        dot.setAttribute('cx', pt.x); dot.setAttribute('cy', pt.y);
+        dot.setAttribute('r', '4.5'); dot.setAttribute('class', 'rm-dot');
+        if (isCenterBottom) dot.setAttribute('opacity', '0.55');
+        g.appendChild(dot);
+
+        svg.appendChild(g);
+        nodeGroups.push({ g, ring, dot });
+
+        // ── 레이블 (노드 옆, 수평 방향) ──
+        // STEP05는 중앙이므로 오른쪽에 레이블
+        const lx     = isCenterBottom ? pt.x + 20 : (isLeft ? pt.x + 20 : pt.x - 20);
+        const anchor = isCenterBottom ? 'start'   : (isLeft ? 'start'   : 'end');
+
+        const stepT = document.createElementNS(ns, 'text');
+        stepT.setAttribute('x', lx); stepT.setAttribute('y', pt.y - 8);
+        stepT.setAttribute('text-anchor', anchor);
+        stepT.setAttribute('class', 'rm-label-step');
+        if (isCenterBottom) stepT.setAttribute('opacity', '0.65');
+        stepT.textContent = data.step;
+        svg.appendChild(stepT);
+
+        const titleT = document.createElementNS(ns, 'text');
+        titleT.setAttribute('x', lx); titleT.setAttribute('y', pt.y + 7);
+        titleT.setAttribute('text-anchor', anchor);
+        titleT.setAttribute('class', 'rm-label-title');
+        if (isCenterBottom) titleT.setAttribute('opacity', '0.65');
+        titleT.textContent = data.title;
+        svg.appendChild(titleT);
+
+        // ── 인터랙션 ──
+        let hoverTimer;
+
+        const showPopup = () => {
+            popDiv.classList.add('is-active');
+            ring.classList.add('rm-ring--active');
+            dot.classList.add('rm-dot--active');
+        };
+        const hidePopup = () => {
+            if (state.pinned === i) return;
+            popDiv.classList.remove('is-active');
+            ring.classList.remove('rm-ring--active', 'rm-ring--pinned');
+            dot.classList.remove('rm-dot--active');
+        };
+
+        g.addEventListener('mouseenter', () => { clearTimeout(hoverTimer); showPopup(); });
+        g.addEventListener('mouseleave', () => { hoverTimer = setTimeout(hidePopup, 180); });
+
+        g.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (state.pinned === i) {
+                state.pinned = -1;
+                hidePopup();
+            } else {
+                nodeGroups.forEach(({ ring: r, dot: d }, j) => {
+                    if (j !== i) {
+                        r.classList.remove('rm-ring--active', 'rm-ring--pinned');
+                        d.classList.remove('rm-dot--active');
+                        popupFOs[j].popDiv.classList.remove('is-active');
+                    }
+                });
+                state.pinned = i;
+                showPopup();
+                ring.classList.add('rm-ring--pinned');
+            }
+        });
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.rm-node-g') && state.pinned !== -1) {
+            const { ring: r, dot: d } = nodeGroups[state.pinned];
+            r.classList.remove('rm-ring--active', 'rm-ring--pinned');
+            d.classList.remove('rm-dot--active');
+            popupFOs[state.pinned].popDiv.classList.remove('is-active');
+            state.pinned = -1;
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && state.pinned !== -1) {
+            const { ring: r, dot: d } = nodeGroups[state.pinned];
+            r.classList.remove('rm-ring--active', 'rm-ring--pinned');
+            d.classList.remove('rm-dot--active');
+            popupFOs[state.pinned].popDiv.classList.remove('is-active');
+            state.pinned = -1;
+        }
+    });
+
+    svgWrap.appendChild(svg);
+};
     wrap.appendChild(styleTag);
 
     const svgWrap = document.createElement('div');
