@@ -1808,7 +1808,6 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
     inset 0 1px 0 rgba(255,255,255,0.08);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  position: relative;
 }
 /* ::before 빗금 완전 제거 */
 .scatter-back::before { display: none; }
