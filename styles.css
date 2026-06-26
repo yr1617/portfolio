@@ -1808,9 +1808,20 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
     inset 0 1px 0 rgba(255,255,255,0.08);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
+  position: relative;
 }
 /* ::before 빗금 완전 제거 */
 .scatter-back::before { display: none; }
+
+/* 흰색 네모 스트로크 (디자인 요소) */
+.scatter-back::after {
+  content: '';
+  position: absolute;
+  inset: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  pointer-events: none;
+}
 
 .sc-icon {
   font-size: 2.4rem;
@@ -2138,4 +2149,50 @@ h3 { font-size: 1.18rem; font-weight: 700; line-height: 1.15; }
   outline: none !important;
   box-shadow: none !important;
   -webkit-tap-highlight-color: transparent !important;
+}
+
+/* ─────────────────────────────────────────────
+   탭 이동 버튼 (About ↔ Projects)
+───────────────────────────────────────────── */
+.tab-nav-btn-wrap {
+  display: flex;
+  padding: 48px 0 24px;
+}
+.tab-nav-btn-wrap--right {
+  justify-content: flex-end;
+}
+.tab-nav-btn-wrap--left {
+  justify-content: flex-start;
+}
+
+.tab-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 999px;
+  color: rgba(243,239,231,0.7);
+  font-size: 0.82rem;
+  font-family: var(--eng-font);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: none;
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+}
+.tab-nav-btn:hover {
+  border-color: rgba(170,233,97,0.6);
+  color: var(--sub);
+  background: rgba(170,233,97,0.06);
+}
+.tab-nav-arrow {
+  font-size: 0.9rem;
+  transition: transform 0.2s ease;
+}
+.tab-nav-btn-wrap--right .tab-nav-btn:hover .tab-nav-arrow {
+  transform: translateX(3px);
+}
+.tab-nav-btn-wrap--left .tab-nav-btn:hover .tab-nav-arrow {
+  transform: translateX(-3px);
 }
