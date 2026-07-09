@@ -707,47 +707,49 @@ const setupTimeline = () => {
 /* ════════════════════════════════════════
     폴더 GUI
 ════════════════════════════════════════ */
+/* isMajor: true 인 항목만 '주요 프로젝트'(메인 프로젝트 카드 p1~p6)와 실제로 일치함.
+   그 외 항목(교내 활동, 독서, 자격, 수상 등)은 주요 프로젝트가 아니므로 별표/강조 없음. */
 const FOLDER_DATA = {
     academic:{title:'교과 프로젝트 경험',path:'~/archive/academic/',items:[
-        {text:'학생 마음 건강 콘텐츠 공모전, 포스터 부문 참여',highlight:false},
-        {text:'포토샵 아트워크 & 브랜딩 굿즈 제작 프로젝트',highlight:false},
-        {text:'멜론 광고 영상 제작 프로젝트 [공유하는 마음]',highlight:false},
-        {text:'맛집 지도 서비스 제작 프로젝트 [MZ]',highlight:true},
-        {text:'그래픽 포스터 제작 프로젝트 [모디곰 BI 포스터]',highlight:true},
-        {text:'학교 아이덴티티 반영 패턴디자인 제작 프로젝트',highlight:false},
-        {text:'흥부전 픽토그램 디자인 프로젝트',highlight:false},
-        {text:'GUI 스타일별 아이콘 제작 프로젝트',highlight:true},
-        {text:'OTT 서비스 디자인 시스템 컴포넌트 및 디자인 시스템 제작 프로젝트',highlight:true},
-        {text:'패션 종합 어플리케이션 [MFF] 창업 계획서 작성 프로젝트',highlight:false},
+        {text:'학생 마음 건강 콘텐츠 공모전, 포스터 부문 참여',isMajor:false},
+        {text:'포토샵 아트워크 & 브랜딩 굿즈 제작 프로젝트',isMajor:false},
+        {text:'멜론 광고 영상 제작 프로젝트 [공유하는 마음]',isMajor:false},
+        {text:'맛집 지도 서비스 제작 프로젝트 [MZ]',isMajor:true},
+        {text:'그래픽 포스터 제작 프로젝트 [모디곰 BI 포스터]',isMajor:true},
+        {text:'학교 아이덴티티 반영 패턴디자인 제작 프로젝트',isMajor:false},
+        {text:'흥부전 픽토그램 디자인 프로젝트',isMajor:false},
+        {text:'GUI 스타일별 아이콘 제작 프로젝트',isMajor:true},
+        {text:'OTT 서비스 디자인 시스템 컴포넌트 및 디자인 시스템 제작 프로젝트',isMajor:false},
+        {text:'패션 종합 어플리케이션 [MFF] 창업 계획서 작성 프로젝트',isMajor:false},
     ]},
     club:{title:'교내 활동 · 동아리 활동',path:'~/archive/club/',items:[
-        {text:'급식 티켓팅 서비스 제작 프로젝트 [급식 패스]',highlight:true},
-        {text:'미림 해커톤 / 컬러워크 기록 서비스 제작 프로젝트 [투데인트]',highlight:true},
-        {text:'AI ESG 교육 이수',highlight:false},
-        {text:'JS 스터디 홍보 게시물 제작',highlight:true},
+        {text:'급식 티켓팅 서비스 제작 프로젝트 [급식 패스]',isMajor:true},
+        {text:'미림 해커톤 / 컬러워크 기록 서비스 제작 프로젝트 [투데인트]',isMajor:true},
+        {text:'AI ESG 교육 이수',isMajor:false},
+        {text:'JS 스터디 홍보 게시물 제작',isMajor:true},
     ]},
     personal:{title:'개인 프로젝트 경험',path:'~/archive/personal/',items:[
-        {text:'컵에 끼우는 화상 방지용 실리콘 차단물로 창업 아이디어 경진 대회 참여',highlight:false},
-        {text:'(진행중) 하루 한번 면접 질문 서비스 제작 프로젝트 [모디곰]',highlight:true},
+        {text:'컵에 끼우는 화상 방지용 실리콘 차단물로 창업 아이디어 경진 대회 참여',isMajor:false},
+        {text:'(진행중) 하루 한번 면접 질문 서비스 제작 프로젝트 [모디곰]',isMajor:false},
     ]},
     books:{title:'독서 경험',path:'~/archive/books/',items:[
-        {text:'< 라면집도 디자이너가 하면 다르다 > — 강범규',highlight:true},
-        {text:'< 디자인 구구단 > — 에이핫',highlight:false},
-        {text:'< (UX/UI 디자이너를 위한) 실무 피그마 > — 클레어정',highlight:true},
-        {text:'< (비전공자를 위한 이해할 수 있는) IT 지식 > — 최원영',highlight:false},
-        {text:'< 1일 1로그 100일 완성 IT 지식 > — 브라이언 W. 커니핸',highlight:false},
-        {text:'< 폰트의 비밀 > — 고바야시 아키라',highlight:true},
-        {text:'< 갱부 > — 나쓰메 소세키',highlight:false},
+        {text:'< 라면집도 디자이너가 하면 다르다 > — 강범규',isMajor:false},
+        {text:'< 디자인 구구단 > — 에이핫',isMajor:false},
+        {text:'< (UX/UI 디자이너를 위한) 실무 피그마 > — 클레어정',isMajor:false},
+        {text:'< (비전공자를 위한 이해할 수 있는) IT 지식 > — 최원영',isMajor:false},
+        {text:'< 1일 1로그 100일 완성 IT 지식 > — 브라이언 W. 커니핸',isMajor:false},
+        {text:'< 폰트의 비밀 > — 고바야시 아키라',isMajor:false},
+        {text:'< 갱부 > — 나쓰메 소세키',isMajor:false},
     ]},
     cert:{title:'자격취득내용',path:'~/archive/cert/',items:[
-        {text:'GTQ 1급',highlight:false},
-        {text:'ITQ 한글 A급, PPT C급',highlight:false},
+        {text:'GTQ 1급',isMajor:false},
+        {text:'ITQ 한글 A급, PPT C급',isMajor:false},
     ]},
     awards:{title:'수상 이력',path:'~/archive/awards/',items:[
-        {text:'신입생 대표 선서, 학교장 장학금',highlight:true},
-        {text:'1학년 1학기 일본어 교과우수상 수상',highlight:false},
-        {text:'피그마 재즈 대상 수상',highlight:true},
-        {text:'AI ESG 교육 이수 수료증',highlight:false},
+        {text:'신입생 대표 선서, 학교장 장학금',isMajor:false},
+        {text:'1학년 1학기 일본어 교과우수상 수상',isMajor:false},
+        {text:'피그마 재즈 대상 수상',isMajor:false},
+        {text:'AI ESG 교육 이수 수료증',isMajor:false},
     ]},
 };
 
@@ -769,9 +771,9 @@ const setupFolderGUI = () => {
         const ul  = document.createElement('ul'); ul.className='modal-file-list';
         d.items.forEach(item => {
             const li = document.createElement('li');
-            li.className = 'modal-file-item'+(item.highlight?' is-highlight':'');
+            li.className = 'modal-file-item'+(item.isMajor?' is-highlight':'');
             const ic = document.createElement('span'); ic.className='file-icon';
-            ic.textContent = item.highlight ? '★' : '›';
+            ic.textContent = item.isMajor ? '★' : '›';
             Object.assign(ic.style,{display:'inline-flex',alignItems:'center',justifyContent:'center'});
             const tx = document.createElement('span'); tx.textContent = item.text;
             li.append(ic, tx); ul.appendChild(li);
