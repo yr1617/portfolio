@@ -200,10 +200,10 @@ a { color: inherit; text-decoration: none; }
   padding: 0 0 clamp(20px,4vh,48px);
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0,1fr) minmax(340px,0.9fr);
+  grid-template-columns: minmax(0,0.82fr) minmax(340px,1.08fr);
   grid-template-areas: "copy model" "foot model";
   align-content: center; align-items: center;
-  column-gap: clamp(40px,7vw,104px);
+  column-gap: clamp(24px,5vw,80px);
   row-gap: 20px;
   min-height: calc(100vh - 92px);
   transform: translateY(-2%);
@@ -229,7 +229,7 @@ a { color: inherit; text-decoration: none; }
 
 .landing-display-shell {
   grid-area: model; position: relative;
-  width: min(100%, 620px, 74vh);
+  width: min(100%, 720px, 80vh);
   aspect-ratio: 1 / 1;
   z-index: 1; pointer-events: auto;
   justify-self: center; align-self: center;
